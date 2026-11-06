@@ -1,0 +1,294 @@
+import 'dart:async';
+import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:just_audio/just_audio.dart';
+import '../../stations/domain/models/station.dart';
+import '../domain/models/now_playing_info.dart';
+
+/// Factory initializer creating the persistent system AudioService instance
+Future<RadioAudioHandler> initAudioHandler() async {
+  return await AudioService.init(
+    builder: () => RadioAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.pulsecast.radio.channel.audio',
+      androidNotificationChannelName: 'PulseCast Radio Playback',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: true,
+      androidNotificationIcon: 'mipmap/ic_launcher',
+    ),
+  );
+}
+
+/// Single persistent AudioHandler managing the internet radio lifecycle,
+/// background playback, lock-screen controls, and reconnection logic.
+class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
+  final AudioPlayer _player;
+  Station? _currentStation;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 3;
+  Timer? _reconnectTimer;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<PlaybackEvent>? _eventSubscription;
+
+  final _errorController = StreamController<String?>.broadcast(sync: true);
+  Stream<String?> get errorStream => _errorController.stream;
+
+  final _reconnectingController = StreamController<bool>.broadcast(sync: true);
+  Stream<bool> get reconnectingStream => _reconnectingController.stream;
+
+  RadioAudioHandler({AudioPlayer? player})
+      : _player = player ??
+            AudioPlayer(
+              audioLoadConfiguration: const AudioLoadConfiguration(
+                androidLoadControl: AndroidLoadControl(
+                  minBufferDuration: Duration(seconds: 15),
+                  maxBufferDuration: Duration(seconds: 30),
+                  bufferForPlaybackDuration: Duration(milliseconds: 600),
+                  bufferForPlaybackAfterRebufferDuration:
+                      Duration(milliseconds: 1500),
+                  prioritizeTimeOverSizeThresholds: true,
+                ),
+                darwinLoadControl: DarwinLoadControl(
+                  preferredForwardBufferDuration: Duration(seconds: 15),
+                  automaticallyWaitsToMinimizeStalling: true,
+                ),
+              ),
+            ) {
+    _initAudioSession();
+    _listenToPlayerEvents();
+  }
+
+  Station? get currentStation => _currentStation;
+  bool get isPlaying => _player.playing;
+
+  Future<void> _initAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+
+      session.interruptionEventStream.listen((event) {
+        if (event.begin) {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              _player.setVolume(0.3);
+              break;
+            case AudioInterruptionType.pause:
+            case AudioInterruptionType.unknown:
+              pause();
+              break;
+          }
+        } else {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              _player.setVolume(1.0);
+              break;
+            case AudioInterruptionType.pause:
+              play();
+              break;
+            case AudioInterruptionType.unknown:
+              break;
+          }
+        }
+      });
+
+      session.becomingNoisyEventStream.listen((_) {
+        // Unplugged headphones: pause radio playback
+        pause();
+      });
+    } catch (_) {
+      // Audio session initialization error fallback
+    }
+  }
+
+  void _listenToPlayerEvents() {
+    _eventSubscription = _player.playbackEventStream.listen((event) {
+      _broadcastState();
+    });
+
+    _playerStateSubscription = _player.playerStateStream.listen((state) {
+      _broadcastState();
+    });
+  }
+
+  void _broadcastState() {
+    final playing = _player.playing;
+    final processingState = _player.processingState;
+
+    AudioProcessingState audioProcessingState;
+    switch (processingState) {
+      case ProcessingState.idle:
+        audioProcessingState = AudioProcessingState.idle;
+        break;
+      case ProcessingState.loading:
+        audioProcessingState = AudioProcessingState.loading;
+        break;
+      case ProcessingState.buffering:
+        audioProcessingState = AudioProcessingState.buffering;
+        break;
+      case ProcessingState.ready:
+        audioProcessingState = AudioProcessingState.ready;
+        _reconnectAttempts = 0; // Reset on successful stream connection
+        _reconnectingController.add(false);
+        break;
+      case ProcessingState.completed:
+        audioProcessingState = AudioProcessingState.completed;
+        break;
+    }
+
+    playbackState.add(
+      PlaybackState(
+        controls: [
+          if (playing) MediaControl.pause else MediaControl.play,
+          MediaControl.stop,
+        ],
+        systemActions: const {},
+        androidCompactActionIndices: const [0, 1],
+        processingState: audioProcessingState,
+        playing: playing,
+        updatePosition: Duration.zero,
+        bufferedPosition: Duration.zero,
+        speed: 1.0,
+      ),
+    );
+  }
+
+  /// Switches to and streams a selected radio station
+  Future<void> playStation(Station station, {NowPlayingInfo? metadata}) async {
+    // If the same station is already playing, simply resume if paused
+    if (_currentStation?.id == station.id && _player.playing) {
+      return;
+    }
+
+    _reconnectTimer?.cancel();
+    _reconnectAttempts = 0;
+    _errorController.add(null);
+    _reconnectingController.add(false);
+
+    // Halt current stream immediately to avoid overlapping audio without tearing down the engine
+    if (_player.playing) {
+      await _player.pause();
+    }
+    _currentStation = station;
+
+    // Update system notification & lock-screen media item
+    final title = metadata?.displayTitle ?? station.name;
+    final artist = metadata?.displaySubtitle ?? (station.genre ?? 'PulseCast Live');
+
+    mediaItem.add(
+      MediaItem(
+        id: station.id.toString(),
+        album: station.genre ?? 'Live Radio',
+        title: title,
+        artist: artist,
+        artUri: (station.artworkUrl != null && station.artworkUrl!.startsWith('http'))
+            ? Uri.tryParse(station.artworkUrl!)
+            : null,
+      ),
+    );
+
+    await _loadAndPlayStream(station.effectiveStreamUrl);
+  }
+
+  Future<void> _loadAndPlayStream(String streamUrl) async {
+    try {
+      _broadcastLoadingState();
+      // Use preload: false so ExoPlayer sets source immediately without blocking,
+      // and play() initiates immediate streaming with fast buffer control.
+      await _player.setUrl(streamUrl, preload: false);
+      await _player.play();
+      _errorController.add(null);
+    } catch (e) {
+      _handlePlaybackError(e.toString(), streamUrl);
+    }
+  }
+
+  void _broadcastLoadingState() {
+    playbackState.add(
+      PlaybackState(
+        controls: [MediaControl.stop],
+        systemActions: const {},
+        androidCompactActionIndices: const [0],
+        processingState: AudioProcessingState.loading,
+        playing: false,
+      ),
+    );
+  }
+
+  void _handlePlaybackError(String error, String streamUrl) {
+    if (_reconnectAttempts < _maxReconnectAttempts) {
+      _reconnectAttempts++;
+      final delaySeconds = 2 * _reconnectAttempts; // Bounded backoff: 2s, 4s, 6s
+      _reconnectingController.add(true);
+      _errorController.add(
+        'Stream interrupted. Reconnecting (attempt $_reconnectAttempts/$_maxReconnectAttempts)...',
+      );
+
+      _reconnectTimer?.cancel();
+      _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
+        if (_currentStation != null) {
+          _loadAndPlayStream(streamUrl);
+        }
+      });
+    } else {
+      _reconnectingController.add(false);
+      _errorController.add(
+        'Unable to connect to "${_currentStation?.name ?? 'station'}". The stream may be currently offline.',
+      );
+      stop();
+    }
+  }
+
+  /// Updates Now Playing metadata on active notification without interrupting stream
+  void updateMetadata(NowPlayingInfo metadata) {
+    if (_currentStation == null) return;
+    final current = mediaItem.value;
+
+    mediaItem.add(
+      MediaItem(
+        id: _currentStation!.id.toString(),
+        album: _currentStation!.genre ?? 'Live Radio',
+        title: metadata.displayTitle,
+        artist: metadata.displaySubtitle,
+        artUri: current?.artUri,
+      ),
+    );
+  }
+
+  @override
+  Future<void> play() async {
+    _errorController.add(null);
+    if (_currentStation != null && _player.processingState == ProcessingState.idle) {
+      await _loadAndPlayStream(_currentStation!.streamUrl);
+    } else {
+      await _player.play();
+    }
+  }
+
+  @override
+  Future<void> pause() async {
+    await _player.pause();
+  }
+
+  @override
+  Future<void> stop() async {
+    _reconnectTimer?.cancel();
+    _reconnectingController.add(false);
+    _currentStation = null;
+    mediaItem.add(null);
+    await _player.stop();
+    _broadcastState();
+  }
+
+  Future<void> dispose() async {
+    _reconnectTimer?.cancel();
+    _eventSubscription?.cancel();
+    _playerStateSubscription?.cancel();
+    if (!_errorController.isClosed) {
+      _errorController.close();
+    }
+    if (!_reconnectingController.isClosed) {
+      _reconnectingController.close();
+    }
+    _player.dispose();
+  }
+}

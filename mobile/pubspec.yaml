@@ -1,0 +1,50 @@
+name: pulsecast
+description: "PulseCast Cross-Platform Internet Radio Mobile Application"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & Icons
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^3.3.2
+
+  # Networking & HTTP Client
+  dio: ^5.11.1
+
+  # Declarative Navigation & Deep Linking
+  go_router: ^17.0.0
+
+  # Audio Playback, Background Controls & Audio Session
+  just_audio: ^0.10.6
+  audio_service: ^0.18.19
+  audio_session: ^0.2.4
+
+  # Secure and Local Storage
+  flutter_secure_storage: ^10.3.4
+  shared_preferences: ^2.5.3
+
+  # Network Image Caching
+  cached_network_image: ^3.4.1
+  file_picker: ^11.0.3
+  connectivity_plus: ^7.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
