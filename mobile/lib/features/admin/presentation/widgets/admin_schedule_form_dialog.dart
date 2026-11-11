@@ -216,8 +216,15 @@ class _AdminScheduleFormDialogState
             // Station Selector
             stationsAsync.when(
               data: (stations) {
-                if (_selectedStationId == null && stations.isNotEmpty) {
-                  _selectedStationId = stations.first.id;
+                final traditionalStations =
+                    stations.where((s) => !s.isChannel6).toList();
+                final selectableStations = traditionalStations.isNotEmpty
+                    ? traditionalStations
+                    : stations;
+                if ((_selectedStationId == null ||
+                        !selectableStations.any((s) => s.id == _selectedStationId)) &&
+                    selectableStations.isNotEmpty) {
+                  _selectedStationId = selectableStations.first.id;
                 }
                 return DropdownButtonFormField<int>(
                   value: _selectedStationId,
@@ -227,7 +234,7 @@ class _AdminScheduleFormDialogState
                     filled: true,
                     fillColor: AppColors.surface,
                   ),
-                  items: stations.map((s) {
+                  items: selectableStations.map((s) {
                     return DropdownMenuItem<int>(
                       value: s.id,
                       child: Text(

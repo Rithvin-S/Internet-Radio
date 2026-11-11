@@ -22,5 +22,6 @@ class RouteNames {
   static const String adminSongUpload = '/admin/songs/upload';
   static const String adminSchedules = '/admin/schedules';
   static const String adminStations = '/admin/stations';
+  static const String adminChannel6Schedule = '/admin/channel6-schedule';
 }
 

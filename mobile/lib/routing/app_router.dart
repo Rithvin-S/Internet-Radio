@@ -16,6 +16,7 @@ import '../features/admin/presentation/screens/admin_songs_screen.dart';
 import '../features/admin/presentation/screens/admin_song_upload_screen.dart';
 import '../features/admin/presentation/screens/admin_schedules_screen.dart';
 import '../features/admin/presentation/screens/admin_stations_portal_screen.dart';
+import '../features/admin/presentation/screens/channel6_admin_schedule_screen.dart';
 
 /// Navigation states based on backend RBAC role
 enum NavRoleState {
@@ -162,6 +163,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           parentNavigatorKey: rootNavigatorKey,
           builder: (context, state) => const AdminSchedulesScreen(),
         ),
+        GoRoute(
+          path: RouteNames.adminChannel6Schedule,
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) => const Channel6AdminScheduleScreen(),
+        ),
       ];
       break;
 
@@ -240,6 +246,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           path: RouteNames.adminSchedules,
           parentNavigatorKey: rootNavigatorKey,
           builder: (context, state) => const AdminSchedulesScreen(),
+        ),
+        GoRoute(
+          path: RouteNames.adminChannel6Schedule,
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) => const Channel6AdminScheduleScreen(),
         ),
       ];
       break;
@@ -322,6 +333,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           path: RouteNames.adminSchedules,
           parentNavigatorKey: rootNavigatorKey,
           builder: (context, state) => const AdminSchedulesScreen(),
+        ),
+        GoRoute(
+          path: RouteNames.adminChannel6Schedule,
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) => const Channel6AdminScheduleScreen(),
         ),
       ];
       break;

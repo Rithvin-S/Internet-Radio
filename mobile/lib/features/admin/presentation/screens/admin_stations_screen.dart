@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../routing/route_names.dart';
 import '../../../stations/domain/models/station.dart';
 import '../../../stations/presentation/providers/stations_provider.dart';
 import '../providers/admin_providers.dart';
@@ -369,6 +370,45 @@ class AdminStationsScreen extends ConsumerWidget {
               ],
             ),
           ),
+          if (station.isChannel6) ...[
+            const SizedBox(width: 6),
+            Material(
+              color: const Color(0xFF2CE045).withOpacity(0.14),
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: () => context.push(RouteNames.adminChannel6Schedule),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFF2CE045).withOpacity(0.45),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.queue_music_rounded,
+                        color: Color(0xFF2CE045),
+                        size: 14,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Queue',
+                        style: TextStyle(
+                          color: Color(0xFF2CE045),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(width: 6),
           Transform.scale(
             scale: 0.82,
@@ -387,14 +427,31 @@ class AdminStationsScreen extends ConsumerWidget {
             ),
             color: AppColors.surfaceElevated,
             onSelected: (value) {
-              if (value == 'edit') {
+              if (value == 'channel6_queue') {
+                context.push(RouteNames.adminChannel6Schedule);
+              } else if (value == 'edit') {
                 _handleEditStation(context, ref, station);
               } else if (value == 'delete') {
                 _handleDeleteStation(context, ref, station);
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
+            itemBuilder: (_) => [
+              if (station.isChannel6)
+                const PopupMenuItem(
+                  value: 'channel6_queue',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.queue_music_rounded,
+                        color: Color(0xFF2CE045),
+                        size: 18,
+                      ),
+                      SizedBox(width: 10),
+                      Text('Channel 6 Queue'),
+                    ],
+                  ),
+                ),
+              const PopupMenuItem(
                 value: 'edit',
                 child: Row(
                   children: [
@@ -404,7 +461,7 @@ class AdminStationsScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'delete',
                 child: Row(
                   children: [

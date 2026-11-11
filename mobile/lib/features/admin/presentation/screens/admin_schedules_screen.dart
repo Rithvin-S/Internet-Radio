@@ -257,7 +257,9 @@ class AdminSchedulesScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   ...stationsAsync.when(
-                    data: (stations) => stations.map((s) {
+                    data: (stations) => stations
+                        .where((s) => !s.isChannel6)
+                        .map((s) {
                       final isSelected = selectedStationId == s.id;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),

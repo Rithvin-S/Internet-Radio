@@ -49,16 +49,28 @@ class AppConfig {
     defaultValue: 'https://desktop-hl0p01s.tail2c12b2.ts.net/pulsecast.mp3',
   );
 
+  /// Optional compile-time override for Channel 6 admin API origin URL
+  static const String _configuredChannel6AdminUrl = String.fromEnvironment(
+    'CHANNEL_6_ADMIN_URL',
+    defaultValue: '',
+  );
+
   /// Optional compile-time override for Channel 6 metadata endpoint URL
   static const String _configuredChannel6NowPlayingUrl = String.fromEnvironment(
     'CHANNEL_6_NOW_PLAYING_URL',
     defaultValue: '',
   );
 
-  /// Resolves Channel 6 Node.js `GET /api/now-playing` URL from a Channel 6 stream URL.
-  static String channel6NowPlayingUrlFor(String? streamUrl) {
-    if (_configuredChannel6NowPlayingUrl.isNotEmpty) {
-      return _configuredChannel6NowPlayingUrl;
+  /// Resolves the Channel 6 Node.js server origin URL (`https://host(:port)`)
+  /// from an active Channel 6 stream URL or `channel6StreamUrl`.
+  static String channel6BaseUrlFor([String? streamUrl]) {
+    if (_configuredChannel6AdminUrl.isNotEmpty) {
+      return _configuredChannel6AdminUrl.endsWith('/')
+          ? _configuredChannel6AdminUrl.substring(
+              0,
+              _configuredChannel6AdminUrl.length - 1,
+            )
+          : _configuredChannel6AdminUrl;
     }
 
     final candidate = (streamUrl != null &&
@@ -74,11 +86,18 @@ class AppConfig {
         scheme: uri.scheme,
         host: uri.host,
         port: uri.hasPort ? uri.port : null,
-        path: '/api/now-playing',
       ).toString();
     }
 
-    return 'https://prevent-productions-satisfy-minimal.trycloudflare.com/api/now-playing';
+    return 'https://prevent-productions-satisfy-minimal.trycloudflare.com';
+  }
+
+  /// Resolves Channel 6 Node.js `GET /api/now-playing` URL from a Channel 6 stream URL.
+  static String channel6NowPlayingUrlFor(String? streamUrl) {
+    if (_configuredChannel6NowPlayingUrl.isNotEmpty) {
+      return _configuredChannel6NowPlayingUrl;
+    }
+    return '${channel6BaseUrlFor(streamUrl)}/api/now-playing';
   }
 
   /// Network Timeouts (milliseconds)
