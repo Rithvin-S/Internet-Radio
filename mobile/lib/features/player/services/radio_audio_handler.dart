@@ -28,7 +28,10 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
   static const int _maxReconnectAttempts = 3;
   Timer? _reconnectTimer;
   StreamSubscription<PlayerState>? _playerStateSubscription;
-  StreamSubscription<PlaybackEvent>? _eventSubscription;
+
+  // Stream generation token and mutex guard to prevent duplicate / concurrent initializations
+  int _streamGeneration = 0;
+  bool _isLoadingStream = false;
 
   final _errorController = StreamController<String?>.broadcast(sync: true);
   Stream<String?> get errorStream => _errorController.stream;
@@ -60,6 +63,7 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
 
   Station? get currentStation => _currentStation;
   bool get isPlaying => _player.playing;
+  bool get isLoadingStream => _isLoadingStream;
 
   Future<void> _initAudioSession() async {
     try {
@@ -101,10 +105,6 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void _listenToPlayerEvents() {
-    _eventSubscription = _player.playbackEventStream.listen((event) {
-      _broadcastState();
-    });
-
     _playerStateSubscription = _player.playerStateStream.listen((state) {
       _broadcastState();
     });
@@ -129,6 +129,7 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
         audioProcessingState = AudioProcessingState.ready;
         _reconnectAttempts = 0; // Reset on successful stream connection
         _reconnectingController.add(false);
+        _isLoadingStream = false;
         break;
       case ProcessingState.completed:
         audioProcessingState = AudioProcessingState.completed;
@@ -152,25 +153,36 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
     );
   }
 
-  /// Switches to and streams a selected radio station
+  /// Switches to and streams a selected radio station exactly once
   Future<void> playStation(Station station, {NowPlayingInfo? metadata}) async {
-    // If the same station is already playing, simply resume if paused
-    if (_currentStation?.id == station.id && _player.playing) {
-      return;
+    // 1. Guard against duplicate calls while same station is already active or initializing
+    if (_currentStation?.id == station.id) {
+      if (_isLoadingStream ||
+          _player.playing ||
+          _player.processingState == ProcessingState.loading ||
+          _player.processingState == ProcessingState.buffering) {
+        return;
+      }
+      if (_player.processingState == ProcessingState.ready) {
+        await _player.play();
+        return;
+      }
     }
 
+    // 2. Invalidate previous generation and cancel any pending retry timers
+    final generation = ++_streamGeneration;
     _reconnectTimer?.cancel();
     _reconnectAttempts = 0;
     _errorController.add(null);
     _reconnectingController.add(false);
 
-    // Halt current stream immediately to avoid overlapping audio without tearing down the engine
+    // Halt current stream cleanly without tearing down audio engine
     if (_player.playing) {
       await _player.pause();
     }
     _currentStation = station;
 
-    // Update system notification & lock-screen media item
+    // 3. Update system notification & lock-screen media item
     final title = metadata?.displayTitle ?? station.name;
     final artist = metadata?.displaySubtitle ?? (station.genre ?? 'PulseCast Live');
 
@@ -186,19 +198,42 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
       ),
     );
 
-    await _loadAndPlayStream(station.effectiveStreamUrl);
+    // 4. Initialize and start stream exactly once for this generation
+    await _loadAndPlayStream(station.effectiveStreamUrl, generation: generation);
   }
 
-  Future<void> _loadAndPlayStream(String streamUrl) async {
+  Future<void> _loadAndPlayStream(String streamUrl, {required int generation}) async {
+    if (generation != _streamGeneration) return;
+
+    _isLoadingStream = true;
+    _broadcastLoadingState();
+
     try {
-      _broadcastLoadingState();
       // Use preload: false so ExoPlayer sets source immediately without blocking,
       // and play() initiates immediate streaming with fast buffer control.
       await _player.setUrl(streamUrl, preload: false);
+      if (generation != _streamGeneration) return;
+
       await _player.play();
+      if (generation != _streamGeneration) return;
+
       _errorController.add(null);
     } catch (e) {
-      _handlePlaybackError(e.toString(), streamUrl);
+      if (generation != _streamGeneration) return;
+
+      final errStr = e.toString().toLowerCase();
+      // Ignore normal connection cancellations caused by switching stations
+      if (errStr.contains('abort') ||
+          errStr.contains('interrupted') ||
+          errStr.contains('cancel')) {
+        return;
+      }
+
+      _handlePlaybackError(e.toString(), streamUrl, generation);
+    } finally {
+      if (generation == _streamGeneration) {
+        _isLoadingStream = false;
+      }
     }
   }
 
@@ -214,7 +249,9 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
     );
   }
 
-  void _handlePlaybackError(String error, String streamUrl) {
+  void _handlePlaybackError(String error, String streamUrl, int generation) {
+    if (generation != _streamGeneration) return;
+
     if (_reconnectAttempts < _maxReconnectAttempts) {
       _reconnectAttempts++;
       final delaySeconds = 2 * _reconnectAttempts; // Bounded backoff: 2s, 4s, 6s
@@ -225,8 +262,8 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
 
       _reconnectTimer?.cancel();
       _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
-        if (_currentStation != null) {
-          _loadAndPlayStream(streamUrl);
+        if (generation == _streamGeneration && _currentStation != null) {
+          _loadAndPlayStream(streamUrl, generation: generation);
         }
       });
     } else {
@@ -258,7 +295,8 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> play() async {
     _errorController.add(null);
     if (_currentStation != null && _player.processingState == ProcessingState.idle) {
-      await _loadAndPlayStream(_currentStation!.streamUrl);
+      final gen = ++_streamGeneration;
+      await _loadAndPlayStream(_currentStation!.effectiveStreamUrl, generation: gen);
     } else {
       await _player.play();
     }
@@ -266,11 +304,15 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> pause() async {
+    _reconnectTimer?.cancel();
+    _reconnectingController.add(false);
     await _player.pause();
   }
 
   @override
   Future<void> stop() async {
+    _streamGeneration++;
+    _isLoadingStream = false;
     _reconnectTimer?.cancel();
     _reconnectingController.add(false);
     _currentStation = null;
@@ -280,8 +322,9 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   Future<void> dispose() async {
+    _streamGeneration++;
+    _isLoadingStream = false;
     _reconnectTimer?.cancel();
-    _eventSubscription?.cancel();
     _playerStateSubscription?.cancel();
     if (!_errorController.isClosed) {
       _errorController.close();

@@ -199,7 +199,20 @@ class PlayerNotifier extends Notifier<PlayerState> {
       return;
     }
 
-    // 2. Immediate visual state update (<16ms, zero-delay UI feedback)
+    // 2. Prevent repeated stream initialization for the same station while active or loading
+    if (state.currentStation?.id == station.id) {
+      if (state.isPlaying || state.isLoading || state.status == RadioPlaybackStatus.buffering) {
+        // Already active or initializing: do not cancel/restart HTTP stream
+        return;
+      }
+      if (state.status == RadioPlaybackStatus.paused) {
+        // Paused: simply resume playback without re-requesting stream
+        await play();
+        return;
+      }
+    }
+
+    // 3. Immediate visual state update (<16ms, zero-delay UI feedback)
     state = state.copyWith(
       currentStation: station,
       status: RadioPlaybackStatus.loading,

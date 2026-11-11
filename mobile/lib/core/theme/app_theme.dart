@@ -3,7 +3,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_dimensions.dart';
 import 'app_typography.dart';
 
-/// PulseCast Unified Dark Theme
+/// PulseCast Unified Dark Theme - Dark Premium Music-Player Aesthetic
 class AppTheme {
   AppTheme._();
 
@@ -16,7 +16,7 @@ class AppTheme {
 
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
-        onPrimary: Colors.white,
+        onPrimary: AppColors.background,
         secondary: AppColors.secondary,
         onSecondary: Colors.white,
         surface: AppColors.surface,
@@ -56,24 +56,27 @@ class AppTheme {
         ),
       ),
 
+      // Fixed: avoid Size.fromHeight(double.infinity) to prevent Row rendering constraint crashes
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.background,
           elevation: 0,
-          minimumSize: const Size.fromHeight(AppDimensions.buttonHeight),
+          minimumSize: const Size(64, AppDimensions.buttonHeight),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
           ),
-          textStyle: AppTypography.labelLarge,
+          textStyle: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primaryLight,
-          minimumSize: const Size.fromHeight(AppDimensions.buttonHeight),
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
+          foregroundColor: AppColors.primary,
+          minimumSize: const Size(64, AppDimensions.buttonHeight),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          side: const BorderSide(color: AppColors.borderLight, width: 1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
           ),
@@ -83,7 +86,7 @@ class AppTheme {
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primaryLight,
+          foregroundColor: AppColors.primary,
           textStyle: AppTypography.labelLarge,
         ),
       ),
@@ -116,23 +119,54 @@ class AppTheme {
       ),
 
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surface,
-        selectedItemColor: AppColors.primaryLight,
+        backgroundColor: AppColors.background,
+        selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textMuted,
+        selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+        unselectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.normal),
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
-        selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 12),
+        elevation: 0,
+      ),
+
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          return AppColors.textMuted;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary;
+          }
+          return AppColors.surfaceHighlight;
+        }),
+        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
       ),
 
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.surfaceElevated,
         contentTextStyle: const TextStyle(color: AppColors.textPrimary),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
+          borderRadius: BorderRadius.circular(AppDimensions.radiusSmall),
           side: const BorderSide(color: AppColors.border),
         ),
         behavior: SnackBarBehavior.floating,
+      ),
+
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.radiusLarge),
+          side: const BorderSide(color: AppColors.border),
+        ),
+      ),
+
+      dividerTheme: const DividerThemeData(
+        color: AppColors.divider,
+        thickness: 1,
+        space: 1,
       ),
     );
   }

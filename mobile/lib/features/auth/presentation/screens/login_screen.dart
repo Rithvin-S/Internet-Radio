@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_dimensions.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../../routing/route_names.dart';
 import '../providers/auth_providers.dart';
-import '../providers/auth_state.dart';
-import '../widgets/auth_text_field.dart';
 
+/// PulseCast Exact Reference Login Screen
 class LoginScreen extends ConsumerStatefulWidget {
   final String? redirect;
 
@@ -27,8 +24,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  static final RegExp _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -37,12 +32,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    // Clear keyboard focus
     FocusScope.of(context).unfocus();
-
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     final success = await ref.read(authNotifierProvider.notifier).login(
           email: _emailController.text,
@@ -53,7 +44,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (widget.redirect != null && widget.redirect!.isNotEmpty) {
         context.go(widget.redirect!);
       } else {
-        context.go(RouteNames.home);
+        context.go(RouteNames.radio);
       }
     }
   }
@@ -65,319 +56,279 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimensions.paddingLarge,
-              vertical: AppDimensions.paddingMedium,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Brand Logo & Header
-                    Center(
-                      child: Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              AppColors.accentCyan,
-                              AppColors.accentViolet,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            AppDimensions.radiusLarge,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accentCyan.withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.radio_rounded,
-                          color: Colors.white,
-                          size: 38,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppDimensions.paddingMedium),
-                    Text(
-                      'PULSECAST',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.displayMedium.copyWith(
-                        letterSpacing: 3,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Sign in to access your library, favourites and live streams',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppDimensions.paddingLarge),
+      body: Stack(
+        children: [
+          // Bottom glowing green wave
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _GreenBottomWave(),
+          ),
 
-                    // Session Expired Banner
-                    if (authState.sessionExpired) ...[
-                      Container(
-                        padding: const EdgeInsets.all(AppDimensions.paddingMedium),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentAmber.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(
-                            AppDimensions.radiusMedium,
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 10),
+
+                      // 1. Exact Reference Logo: Pulse wave + "PulseCast"
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CustomPaint(
+                            size: const Size(36, 26),
+                            painter: _PulseWaveformPainter(color: AppColors.primary),
                           ),
-                          border: Border.all(
-                            color: AppColors.accentAmber.withValues(alpha: 0.4),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'PulseCast',
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.schedule_rounded,
-                              color: AppColors.accentAmber,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Your session has expired. Please sign in again.',
-                                style: AppTypography.bodySmall.copyWith(
-                                  color: AppColors.accentAmber,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Internet Radio Streaming',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
-                      const SizedBox(height: AppDimensions.paddingMedium),
-                    ],
 
-                    // API Error Banner
-                    if (authState.status == AuthStatus.error &&
-                        authState.errorMessage != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(AppDimensions.paddingMedium),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentCoral.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(
-                            AppDimensions.radiusMedium,
-                          ),
-                          border: Border.all(
-                            color: AppColors.accentCoral.withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(
-                              Icons.error_outline_rounded,
-                              color: AppColors.accentCoral,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    authState.errorMessage!,
-                                    style: AppTypography.bodySmall.copyWith(
-                                      color: AppColors.accentCoral,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  if (authState.fieldErrors.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    ...authState.fieldErrors.map(
-                                      (err) => Text(
-                                        '• $err',
-                                        style: AppTypography.caption.copyWith(
-                                          color: AppColors.accentCoral,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.close_rounded,
-                                size: 16,
-                                color: AppColors.accentCoral,
-                              ),
-                              onPressed: () {
-                                ref.read(authNotifierProvider.notifier).clearError();
-                              },
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppDimensions.paddingMedium),
-                    ],
+                      const SizedBox(height: 40),
 
-                    // Email Field
-                    AuthTextField(
-                      controller: _emailController,
-                      label: 'Email Address',
-                      hint: 'name@example.com',
-                      prefixIcon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      enabled: !isLoading,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Email is required';
-                        }
-                        if (!_emailRegex.hasMatch(value.trim())) {
-                          return 'Please enter a valid email address';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: AppDimensions.paddingMedium),
-
-                    // Password Field
-                    AuthTextField(
-                      controller: _passwordController,
-                      label: 'Password',
-                      hint: 'Enter your password',
-                      prefixIcon: Icons.lock_outline_rounded,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      enabled: !isLoading,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                          color: AppColors.textMuted,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Password is required';
-                        }
-                        return null;
-                      },
-                      onFieldSubmitted: (_) => _handleLogin(),
-                    ),
-                    const SizedBox(height: AppDimensions.paddingLarge),
-
-                    // Submit Button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentCyan,
-                        foregroundColor: AppColors.background,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppDimensions.paddingMedium,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppDimensions.radiusMedium,
-                          ),
-                        ),
-                      ),
-                      onPressed: isLoading ? null : _handleLogin,
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.background,
-                              ),
-                            )
-                          : Text(
-                              'Sign In',
-                              style: AppTypography.titleMedium.copyWith(
-                                color: AppColors.background,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(height: AppDimensions.paddingLarge),
-
-                    // Link to Register Screen
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          "Don't have an account? ",
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: isLoading
-                              ? null
-                              : () => context.go(RouteNames.register),
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      // Error message if any
+                      if (authState.errorMessage != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentCoral.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.accentCoral.withValues(alpha: 0.4)),
                           ),
                           child: Text(
-                            'Create Account',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.accentCyan,
-                              fontWeight: FontWeight.bold,
+                            authState.errorMessage!,
+                            style: const TextStyle(color: AppColors.accentCoral, fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // 2. Email Field matching reference
+                      _buildAuthInput(
+                        controller: _emailController,
+                        hintText: 'Email',
+                        prefixIcon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) return 'Email is required';
+                          if (!val.contains('@')) return 'Enter a valid email';
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // 3. Password Field matching reference
+                      _buildAuthInput(
+                        controller: _passwordController,
+                        hintText: 'Password',
+                        prefixIcon: Icons.lock_outline_rounded,
+                        obscureText: _obscurePassword,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            color: AppColors.textSecondary,
+                            size: 20,
+                          ),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return 'Password is required';
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // 4. Solid Lime Green "Login" Button matching reference
+                      SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: isLoading ? null : _handleLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.black,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : const Text(
+                                  'Login',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.black,
+                                  ),
+                                ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: AppDimensions.paddingMedium),
+                      ),
 
-                    // Continue as Guest Option
-                    Center(
-                      child: TextButton.icon(
-                        icon: const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 16,
-                          color: AppColors.textMuted,
+                      const SizedBox(height: 20),
+
+                      // 5. "or" separator text
+                      const Text(
+                        'or',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
                         ),
-                        label: Text(
-                          'Continue as Guest Listener',
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textMuted,
-                            decoration: TextDecoration.underline,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // 6. "Continue with Google" button matching reference
+                      Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border, width: 1),
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {},
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildGoogleIcon(),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Continue with Google',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        onPressed: isLoading
-                            ? null
-                            : () => context.go(RouteNames.home),
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 32),
+
+                      // 7. "Don't have an account? Register" text
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            "Don't have an account? ",
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => context.push(RouteNames.register),
+                            child: const Text(
+                              'Register',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuthInput({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData prefixIcon,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
+      child: TextFormField(
+        controller: controller,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        style: const TextStyle(color: Colors.white, fontSize: 14.5),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+          prefixIcon: Icon(prefixIcon, color: AppColors.textSecondary, size: 20),
+          suffixIcon: suffixIcon,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        ),
+        validator: validator,
+      ),
+    );
+  }
+
+  Widget _buildGoogleIcon() {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: const BoxDecoration(shape: BoxShape.circle),
+      child: const Center(
+        child: Text(
+          'G',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF4285F4),
           ),
         ),
       ),
@@ -385,3 +336,82 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
+class _PulseWaveformPainter extends CustomPainter {
+  final Color color;
+  const _PulseWaveformPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2.8
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final path = Path();
+    final h = size.height;
+    final w = size.width;
+
+    path.moveTo(0, h * 0.5);
+    path.lineTo(w * 0.18, h * 0.5);
+    path.lineTo(w * 0.32, h * 0.22);
+    path.lineTo(w * 0.48, h * 0.82);
+    path.lineTo(w * 0.64, h * 0.1);
+    path.lineTo(w * 0.78, h * 0.68);
+    path.lineTo(w * 0.88, h * 0.5);
+    path.lineTo(w, h * 0.5);
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PulseWaveformPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _GreenBottomWave extends StatelessWidget {
+  const _GreenBottomWave();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox(
+        height: 140,
+        width: double.infinity,
+        child: CustomPaint(
+          painter: _BottomWavePainter(),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomWavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final path = Path();
+    path.moveTo(0, h * 0.7);
+    path.cubicTo(w * 0.25, h * 0.4, w * 0.65, h * 0.95, w, h * 0.6);
+    path.lineTo(w, h);
+    path.lineTo(0, h);
+    path.close();
+
+    final paint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          AppColors.primary.withValues(alpha: 0.3),
+          AppColors.primary.withValues(alpha: 0.0),
+        ],
+        begin: Alignment.bottomCenter,
+        end: Alignment.topCenter,
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

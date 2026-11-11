@@ -48,7 +48,7 @@ class _StationsScreenState extends ConsumerState<StationsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Radio Stations'),
+        title: const Text('Stations', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
         backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
@@ -83,7 +83,7 @@ class _StationsScreenState extends ConsumerState<StationsScreen> {
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.textPrimary,
                     ),
-                    cursorColor: AppColors.accentCyan,
+                    cursorColor: AppColors.primary,
                     onChanged: (val) {
                       ref
                           .read(stationSearchQueryProvider.notifier)
@@ -136,7 +136,7 @@ class _StationsScreenState extends ConsumerState<StationsScreen> {
                         borderRadius:
                             BorderRadius.circular(AppDimensions.radiusMedium),
                         borderSide: const BorderSide(
-                          color: AppColors.accentCyan,
+                          color: AppColors.primary,
                           width: 1.5,
                         ),
                       ),
@@ -169,7 +169,7 @@ class _StationsScreenState extends ConsumerState<StationsScreen> {
                                 (isAll || !selected) ? null : genre,
                               );
                         },
-                        selectedColor: AppColors.accentCyan,
+                        selectedColor: AppColors.primary,
                         backgroundColor: AppColors.cardSurface,
                         labelStyle: AppTypography.caption.copyWith(
                           color: isSelected
@@ -180,7 +180,7 @@ class _StationsScreenState extends ConsumerState<StationsScreen> {
                         ),
                         side: BorderSide(
                           color: isSelected
-                              ? AppColors.accentCyan
+                              ? AppColors.primary
                               : AppColors.borderSubtle,
                         ),
                         shape: RoundedRectangleBorder(
@@ -201,7 +201,7 @@ class _StationsScreenState extends ConsumerState<StationsScreen> {
             child: filteredStationsAsync.when(
               loading: () => const Center(
                 child: CircularProgressIndicator(
-                  color: AppColors.accentCyan,
+                  color: AppColors.primary,
                 ),
               ),
               error: (err, stack) => Center(
@@ -233,7 +233,7 @@ class _StationsScreenState extends ConsumerState<StationsScreen> {
                       const SizedBox(height: AppDimensions.space16),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accentCyan,
+                          backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.background,
                         ),
                         onPressed: () => ref.refresh(stationsListProvider),

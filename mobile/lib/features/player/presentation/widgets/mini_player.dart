@@ -29,19 +29,12 @@ class MiniPlayerWidget extends ConsumerWidget {
         station.artworkUrl!.startsWith('http');
 
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        border: const Border(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
           top: BorderSide(color: AppColors.border, width: 1),
           bottom: BorderSide(color: AppColors.border, width: 1),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -62,20 +55,24 @@ class MiniPlayerWidget extends ConsumerWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      gradient: isPlaying
-                          ? AppColors.auroraGradient
-                          : const LinearGradient(
-                              colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
-                            ),
+                      color: isPlaying
+                          ? AppColors.brandGreenDark
+                          : AppColors.surface,
+                      border: Border.all(
+                        color: isPlaying
+                            ? AppColors.primary.withValues(alpha: 0.4)
+                            : AppColors.border,
+                        width: 1,
+                      ),
                     ),
                     child: hasArtwork
                         ? CachedNetworkImage(
                             imageUrl: station.artworkUrl!,
                             fit: BoxFit.cover,
-                            placeholder: (_, __) => _buildFallbackIcon(),
-                            errorWidget: (_, __, ___) => _buildFallbackIcon(),
+                            placeholder: (_, __) => _buildFallbackIcon(isPlaying),
+                            errorWidget: (_, __, ___) => _buildFallbackIcon(isPlaying),
                           )
-                        : _buildFallbackIcon(),
+                        : _buildFallbackIcon(isPlaying),
                   ),
                 ),
                 const SizedBox(width: AppDimensions.space12),
@@ -138,7 +135,7 @@ class MiniPlayerWidget extends ConsumerWidget {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppColors.accentCyan,
+                            color: AppColors.primaryLight,
                           ),
                         )
                       : Icon(
@@ -146,7 +143,7 @@ class MiniPlayerWidget extends ConsumerWidget {
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
                           size: 30,
-                          color: AppColors.accentCyan,
+                          color: AppColors.primaryLight,
                         ),
                   onPressed: () {
                     ref.read(playerNotifierProvider.notifier).togglePlayPause();
@@ -172,12 +169,12 @@ class MiniPlayerWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildFallbackIcon() {
-    return const Center(
+  Widget _buildFallbackIcon(bool isPlaying) {
+    return Center(
       child: Icon(
         Icons.radio_rounded,
-        color: Colors.white,
-        size: 24,
+        color: isPlaying ? AppColors.primaryLight : AppColors.textSecondary,
+        size: 22,
       ),
     );
   }

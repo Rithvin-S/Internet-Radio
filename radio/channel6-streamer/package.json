@@ -1,0 +1,20 @@
+{
+  "name": "pulsecast-channel6-streamer",
+  "version": "1.0.0",
+  "description": "PulseCast Channel 6 Direct HTTP Audio Streaming Engine (Icecast-Free)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node ../../tests/test_channel6_streamer.js"
+  },
+  "keywords": [
+    "pulsecast",
+    "radio",
+    "streaming",
+    "http-audio",
+    "channel6"
+  ],
+  "author": "Antigravity Engineering",
+  "license": "ISC"
+}
+

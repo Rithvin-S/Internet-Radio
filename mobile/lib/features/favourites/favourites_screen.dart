@@ -45,10 +45,10 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favorites'),
+        title: const Text('Favourites', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppColors.accentCyan),
+            icon: const Icon(Icons.settings_outlined, color: AppColors.textSecondary),
             tooltip: 'Settings & Preferences',
             onPressed: () => context.push(RouteNames.settings),
           ),
@@ -62,9 +62,9 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.accentCyan,
+          indicatorColor: AppColors.primary,
           indicatorWeight: 3,
-          labelColor: AppColors.accentCyan,
+          labelColor: AppColors.primaryLight,
           unselectedLabelColor: AppColors.textSecondary,
           labelStyle: AppTypography.titleMedium.copyWith(fontSize: 14),
           tabs: [
@@ -79,14 +79,14 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen>
           // Tab 1: Favorite Stations
           RefreshIndicator(
             onRefresh: () => ref.read(favoritesProvider.notifier).loadFavorites(),
-            color: AppColors.accentCyan,
+            color: AppColors.primary,
             child: _buildStationsTab(favState),
           ),
 
           // Tab 2: Favorite Songs
           RefreshIndicator(
             onRefresh: () => ref.read(favoritesProvider.notifier).loadFavorites(),
-            color: AppColors.accentCyan,
+            color: AppColors.primary,
             child: _buildSongsTab(favState),
           ),
         ],
@@ -325,93 +325,68 @@ class _FavoriteStationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isCurrent ? AppColors.accentCyan : AppColors.border,
-          width: isCurrent ? 1.5 : 1,
+          color: (isCurrent && isPlaying) ? AppColors.primary : AppColors.border,
+          width: (isCurrent && isPlaying) ? 1.5 : 1,
         ),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        onTap: onPlay,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
+          child: Container(
             width: 48,
             height: 48,
+            color: AppColors.surfaceElevated,
             child: station.artworkUrl != null &&
                     station.artworkUrl!.isNotEmpty &&
                     station.artworkUrl!.startsWith('http')
                 ? CachedNetworkImage(
                     imageUrl: station.artworkUrl!,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
-                      color: AppColors.surface,
-                      child: const Icon(Icons.radio_rounded, color: AppColors.accentCyan),
+                    placeholder: (_, __) => const Icon(
+                      Icons.radio_rounded,
+                      color: AppColors.primary,
+                      size: 22,
                     ),
-                    errorWidget: (_, __, ___) => Container(
-                      color: AppColors.surface,
-                      child: const Icon(Icons.radio_rounded, color: AppColors.accentCyan),
+                    errorWidget: (_, __, ___) => const Icon(
+                      Icons.radio_rounded,
+                      color: AppColors.primary,
+                      size: 22,
                     ),
                   )
-                : Container(
-                    color: AppColors.surface,
-                    child: const Icon(Icons.radio_rounded, color: AppColors.accentCyan),
+                : const Icon(
+                    Icons.radio_rounded,
+                    color: AppColors.primary,
+                    size: 22,
                   ),
           ),
         ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                station.name,
-                style: AppTypography.titleMedium.copyWith(fontSize: 15),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (isCurrent && isPlaying)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.accentEmerald.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'NOW PLAYING',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.accentEmerald,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        subtitle: Text(
-          station.genre ?? 'Live Radio',
-          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+        title: Text(
+          station.name,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(
-                isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
-                color: AppColors.accentCyan,
-                size: 32,
-              ),
-              onPressed: onPlay,
-            ),
-            IconButton(
-              icon: const Icon(Icons.favorite_rounded, color: AppColors.accentCoral, size: 22),
-              tooltip: 'Remove from Favorites',
-              onPressed: onRemove,
-            ),
-          ],
+        subtitle: Text(
+          station.genre ?? '24/7 Live Radio',
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.favorite_rounded, color: AppColors.primary, size: 23),
+          tooltip: 'Remove from Favourites',
+          onPressed: onRemove,
         ),
       ),
     );
@@ -442,13 +417,18 @@ class _FavoriteSongCard extends StatelessWidget {
           height: 44,
           decoration: BoxDecoration(
             color: song.isSupabase
-                ? AppColors.primary.withValues(alpha: 0.2)
-                : AppColors.accentCyan.withValues(alpha: 0.2),
+                ? AppColors.brandGreenDark
+                : AppColors.surface,
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: song.isSupabase
+                  ? AppColors.primary.withValues(alpha: 0.35)
+                  : AppColors.border,
+            ),
           ),
           child: Icon(
             song.isSupabase ? Icons.cloud_done_rounded : Icons.music_note_rounded,
-            color: song.isSupabase ? AppColors.primary : AppColors.accentCyan,
+            color: song.isSupabase ? AppColors.primaryLight : AppColors.primary,
             size: 22,
           ),
         ),
@@ -470,19 +450,28 @@ class _FavoriteSongCard extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: song.isSupabase
-                        ? AppColors.primary.withValues(alpha: 0.15)
-                        : AppColors.accentCyan.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    song.isSupabase ? 'Storage Library' : (song.stationName ?? 'Radio'),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: song.isSupabase ? AppColors.primary : AppColors.accentCyan,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: song.isSupabase
+                          ? AppColors.primary.withValues(alpha: 0.15)
+                          : AppColors.surface,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: song.isSupabase
+                            ? AppColors.primary.withValues(alpha: 0.3)
+                            : AppColors.border,
+                      ),
+                    ),
+                    child: Text(
+                      song.isSupabase ? 'Storage Library' : (song.stationName ?? 'Radio'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: song.isSupabase ? AppColors.primaryLight : AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),

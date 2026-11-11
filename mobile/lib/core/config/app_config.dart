@@ -46,7 +46,7 @@ class AppConfig {
   /// Channel 6 public HTTPS live radio stream URL (PulseCast Radio 24/7 Automated)
   static const String channel6StreamUrl = String.fromEnvironment(
     'CHANNEL_6_STREAM_URL',
-    defaultValue: 'https://teacher-chat-groundwater-sense.trycloudflare.com/pulsecast.mp3',
+    defaultValue: 'https://prevent-productions-satisfy-minimal.trycloudflare.com/pulsecast.mp3',
   );
 
   /// Network Timeouts (milliseconds)

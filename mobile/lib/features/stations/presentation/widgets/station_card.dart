@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulsecast/features/favorites/presentation/providers/favorites_providers.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../domain/models/station.dart';
 
+/// Exact Reference StationCard:
+/// Dark rounded card, 48x48 rounded artwork, bold title, genre subtitle,
+/// active state has vibrant green border + 3 equalizer bars + circular pause button,
+/// inactive state has dark circular play button with green border.
 class StationCard extends ConsumerWidget {
   final Station station;
   final bool isSelected;
@@ -32,61 +35,33 @@ class StationCard extends ConsumerWidget {
     final isFavorite = ref.watch(isStationFavoriteProvider(station.id));
 
     return Container(
-      margin: const EdgeInsets.only(bottom: AppDimensions.space12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: isSelected
-            ? AppColors.surfaceElevated
-            : AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLarge),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected
-              ? AppColors.accentCyan
-              : AppColors.borderSubtle,
-          width: isSelected ? 1.5 : 1,
+          color: (isSelected && isPlaying) ? AppColors.primary : AppColors.border,
+          width: (isSelected && isPlaying) ? 1.5 : 1.0,
         ),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: AppColors.accentCyan.withValues(alpha: 0.15),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLarge),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          borderRadius: BorderRadius.circular(AppDimensions.radiusLarge),
+          borderRadius: BorderRadius.circular(12),
           onTap: onSelect,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimensions.space12,
-              vertical: AppDimensions.space8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 1. Station Artwork (Fixed 52x52)
+                // 1. Station Artwork Thumbnail (48x48 with 8px radius)
                 ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(AppDimensions.radiusMedium),
+                  borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: isSelected
-                          ? AppColors.auroraGradient
-                          : const LinearGradient(
-                              colors: [
-                                Color(0xFF1E293B),
-                                Color(0xFF0F172A),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                    ),
+                    width: 48,
+                    height: 48,
+                    color: AppColors.surfaceElevated,
                     child: hasArtwork
                         ? CachedNetworkImage(
                             imageUrl: station.artworkUrl!,
@@ -97,190 +72,102 @@ class StationCard extends ConsumerWidget {
                         : _buildFallbackIcon(),
                   ),
                 ),
-                const SizedBox(width: AppDimensions.space12),
+                const SizedBox(width: 12),
 
-                // 2. Flexible Information Area (Expanded to fit all available remaining space)
+                // 2. Flexible Center Content (Name & Subtitle)
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Station Name & Optional Fallback Badge
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              station.name,
-                              style: AppTypography.titleMedium.copyWith(
-                                color: isSelected
-                                    ? AppColors.accentCyan
-                                    : AppColors.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (station.isLocalFallback) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.accentAmber
-                                    .withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(
-                                  AppDimensions.radiusSmall,
-                                ),
-                              ),
-                              child: Text(
-                                'DEV',
-                                style: AppTypography.caption.copyWith(
-                                  color: AppColors.accentAmber,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Genre Tag & LIVE / STREAMING Indicator
-                      Row(
-                        children: [
-                          if (station.genre != null &&
-                              station.genre!.isNotEmpty)
-                            Flexible(
-                              fit: FlexFit.loose,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceHighlight
-                                      .withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(
-                                    AppDimensions.radiusSmall,
-                                  ),
-                                ),
-                                child: Text(
-                                  station.genre!,
-                                  style: AppTypography.caption.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 11,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  softWrap: false,
-                                ),
-                              ),
-                            ),
-                          if (station.genre != null &&
-                              station.genre!.isNotEmpty &&
-                              isSelected)
-                            const SizedBox(width: 6),
-                          if (isSelected)
-                            _buildStatusIndicator(),
-                        ],
-                      ),
-
-                      // Station Description
-                      if (station.description != null &&
-                          station.description!.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          station.description!,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textMuted,
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        station.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
                         ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        station.genre ?? '24/7 Live Radio',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(width: AppDimensions.space8),
+                const SizedBox(width: 8),
 
-                // 3. Fixed Trailing Control Area (Width: 44px dedicated footprint)
-                SizedBox(
-                  width: 44,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Favorite Toggle Button
-                      SizedBox(
-                        width: 38,
-                        height: 36,
-                        child: IconButton(
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          icon: Icon(
-                            isFavorite
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            color: isFavorite
-                                ? AppColors.accentCoral
-                                : AppColors.textSecondary,
-                            size: 22,
-                          ),
-                          tooltip: isFavorite
-                              ? 'Remove from Favorites'
-                              : 'Add to Favorites',
-                          onPressed: () {
-                            ref
-                                .read(favoritesProvider.notifier)
-                                .toggleFavoriteStation(station);
-                          },
+                // 3. Trailing Controls: Equalizer bars + Circular Play/Pause Button
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Equalizer bars when actively playing
+                    if (isSelected && isPlaying) ...[
+                      const _MiniEqualizerBars(),
+                      const SizedBox(width: 10),
+                    ],
+
+                    // Favorite quick toggle button
+                    InkWell(
+                      onTap: () {
+                        ref.read(favoritesProvider.notifier).toggleFavoriteStation(station);
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Icon(
+                          isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          color: isFavorite ? AppColors.primary : AppColors.textMuted,
+                          size: 19,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                    ),
+                    const SizedBox(width: 6),
 
-                      // Play / Pause Action Button
-                      SizedBox(
-                        width: 38,
-                        height: 38,
-                        child: IconButton.filled(
-                          visualDensity: VisualDensity.compact,
-                          style: IconButton.styleFrom(
-                            backgroundColor: isSelected && isPlaying
-                                ? AppColors.accentCyan
-                                : AppColors.surfaceHighlight,
-                            foregroundColor: isSelected && isPlaying
-                                ? AppColors.background
-                                : Colors.white,
-                            padding: EdgeInsets.zero,
-                            minimumSize: const Size(38, 38),
-                            maximumSize: const Size(40, 40),
+                    // Play/Pause Circular Action Button matching reference
+                    GestureDetector(
+                      onTap: onTogglePlay,
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.transparent,
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 1.5,
                           ),
-                          onPressed: onTogglePlay,
-                          icon: isLoading && isSelected
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
+                        ),
+                        child: isLoading && isSelected
+                            ? const Center(
+                                child: SizedBox(
+                                  width: 14,
+                                  height: 14,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.white,
+                                    color: AppColors.primary,
                                   ),
-                                )
-                              : Icon(
-                                  isSelected && isPlaying
-                                      ? Icons.pause_rounded
-                                      : Icons.play_arrow_rounded,
-                                  size: 22,
                                 ),
-                        ),
+                              )
+                            : Icon(
+                                (isSelected && isPlaying)
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                color: AppColors.primary,
+                                size: 19,
+                              ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -290,49 +177,82 @@ class StationCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusIndicator() {
-    final label = isPlaying ? 'STREAMING' : 'READY';
-    final color = isPlaying ? AppColors.accentEmerald : AppColors.accentCyan;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppDimensions.radiusSmall),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: AppTypography.caption.copyWith(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.4,
-            ),
-          ),
-        ],
+  Widget _buildFallbackIcon() {
+    return const Center(
+      child: Icon(
+        Icons.radio_rounded,
+        color: AppColors.primary,
+        size: 22,
       ),
     );
   }
+}
 
-  Widget _buildFallbackIcon() {
-    return Center(
-      child: Icon(
-        Icons.radio_rounded,
-        color: isSelected ? Colors.white : AppColors.accentCyan,
-        size: 26,
-      ),
+/// 3 small green animated equalizer bars for currently active card
+class _MiniEqualizerBars extends StatefulWidget {
+  const _MiniEqualizerBars();
+
+  @override
+  State<_MiniEqualizerBars> createState() => _MiniEqualizerBarsState();
+}
+
+class _MiniEqualizerBarsState extends State<_MiniEqualizerBars> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final val = _controller.value;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              width: 2.5,
+              height: 6 + 10 * val,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+            const SizedBox(width: 2.5),
+            Container(
+              width: 2.5,
+              height: 16 - 8 * val,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+            const SizedBox(width: 2.5),
+            Container(
+              width: 2.5,
+              height: 8 + 8 * val,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

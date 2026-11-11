@@ -2,30 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_dimensions.dart';
-import '../../core/constants/app_strings.dart';
-import '../../core/theme/app_typography.dart';
 import '../../routing/route_names.dart';
-import '../auth/presentation/providers/auth_providers.dart';
 import 'presentation/providers/admin_providers.dart';
-import 'presentation/widgets/admin_stat_card.dart';
 
+/// PulseCast Exact Reference Admin Dashboard Screen
+/// Features green crown icon, centered title, 2x2 grid (Library, Stations, Schedule, Analytics),
+/// and bottom glowing green wave.
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
     final statsAsync = ref.watch(adminDashboardStatsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(AppStrings.adminDashboard),
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -34,266 +30,153 @@ class AdminDashboardScreen extends ConsumerWidget {
             }
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppColors.accentAmber),
-            tooltip: 'Settings & Preferences',
-            onPressed: () => context.push(RouteNames.settings),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh Dashboard',
-            onPressed: () => ref.invalidate(adminDashboardStatsProvider),
-          ),
-        ],
       ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          backgroundColor: AppColors.surface,
-          onRefresh: () async {
-            ref.invalidate(adminDashboardStatsProvider);
-            await ref.read(adminDashboardStatsProvider.future);
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Admin Status Banner
-                Container(
-                  padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.accentAmber.withValues(alpha: 0.15),
-                        AppColors.cardSurface,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      AppDimensions.radiusLarge,
-                    ),
-                    border: Border.all(
-                      color: AppColors.accentAmber.withValues(alpha: 0.4),
+      body: Stack(
+        children: [
+          // Bottom glowing green wave matching reference
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _GreenBottomWave(),
+          ),
+
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 8),
+
+                  // 1. Crown Icon in vibrant reference green
+                  const Icon(
+                    Icons.workspace_premium_rounded,
+                    color: AppColors.primary,
+                    size: 38,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 2. Admin Dashboard Title
+                  const Text(
+                    'Admin Dashboard',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: -0.2,
                     ),
                   ),
-                  child: Row(
+
+                  const SizedBox(height: 36),
+
+                  // 3. Exact 2x2 Grid matching reference
+                  Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentAmber.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.shield_rounded,
-                          color: AppColors.accentAmber,
-                          size: 28,
+                      // Grid Item 1: Library
+                      Expanded(
+                        child: _buildDashboardCard(
+                          icon: Icons.music_note_rounded,
+                          title: 'Library',
+                          subtitle: 'Manage tracks',
+                          onTap: () => context.push(RouteNames.adminSongs),
                         ),
                       ),
                       const SizedBox(width: 16),
+
+                      // Grid Item 2: Stations
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Administrator Portal',
-                              style: AppTypography.titleMedium.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Signed in as ${user?.name ?? "Administrator"} (${user?.email ?? ""})',
-                              style: AppTypography.caption.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                        child: _buildDashboardCard(
+                          icon: Icons.cell_tower_rounded,
+                          title: 'Stations',
+                          subtitle: 'Manage stations',
+                          onTap: () => context.push(RouteNames.adminStations),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: AppDimensions.paddingLarge),
 
-                // Live Analytics & Infrastructure Stats
-                Text(
-                  'System Overview',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: AppDimensions.paddingMedium),
+                  const SizedBox(height: 16),
 
-                statsAsync.when(
-                  data: (stats) {
-                    final songStats = stats.songStats;
-                    return Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: AdminStatCard(
-                                title: 'Total Songs',
-                                value: '${songStats?.totalSongs ?? 0}',
-                                icon: Icons.library_music_rounded,
-                                color: AppColors.accentViolet,
-                                subtitle: '${songStats?.activeSongs ?? 0} active',
-                              ),
-                            ),
-                            const SizedBox(width: AppDimensions.paddingMedium),
-                            Expanded(
-                              child: AdminStatCard(
-                                title: 'Storage Used',
-                                value: songStats?.formattedTotalStorage ?? '0 MB',
-                                icon: Icons.cloud_done_rounded,
-                                color: AppColors.accentCyan,
-                              ),
-                            ),
-                          ],
+                  Row(
+                    children: [
+                      // Grid Item 3: Schedule
+                      Expanded(
+                        child: _buildDashboardCard(
+                          icon: Icons.calendar_month_rounded,
+                          title: 'Schedule',
+                          subtitle: 'Plan broadcasts',
+                          onTap: () => context.push(RouteNames.adminSchedules),
                         ),
-                        const SizedBox(height: AppDimensions.paddingMedium),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: AdminStatCard(
-                                title: 'Broadcast Stations',
-                                value: '${stats.totalStations}',
-                                icon: Icons.cell_tower_rounded,
-                                color: AppColors.accentEmerald,
-                                subtitle: '${stats.activeStations} online',
-                              ),
-                            ),
-                            const SizedBox(width: AppDimensions.paddingMedium),
-                            Expanded(
-                              child: AdminStatCard(
-                                title: 'Program Schedules',
-                                value: '${stats.totalSchedules}',
-                                icon: Icons.calendar_month_rounded,
-                                color: AppColors.accentAmber,
-                                subtitle: '${stats.publishedSchedules} published',
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppDimensions.paddingMedium),
-
-                        // System Health Row
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppDimensions.paddingMedium,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.cardSurface,
-                            borderRadius:
-                                BorderRadius.circular(AppDimensions.radiusMedium),
-                            border: Border.all(color: AppColors.borderSubtle),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: stats.isServerHealthy
-                                      ? AppColors.connected
-                                      : AppColors.buffering,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Backend API Gateway: ${stats.serverStatus.toUpperCase()}',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                'Synced ${stats.lastChecked.hour.toString().padLeft(2, '0')}:${stats.lastChecked.minute.toString().padLeft(2, '0')}',
-                                style: const TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                  loading: () => const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: CircularProgressIndicator(color: AppColors.primary),
-                    ),
-                  ),
-                  error: (e, _) => Container(
-                    padding: const EdgeInsets.all(AppDimensions.paddingMedium),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardSurface,
-                      borderRadius:
-                          BorderRadius.circular(AppDimensions.radiusMedium),
-                      border: Border.all(
-                        color: AppColors.accentCoral.withValues(alpha: 0.3),
                       ),
-                    ),
-                    child: Text(
-                      'Failed to load analytics: $e',
-                      style: const TextStyle(color: AppColors.accentCoral),
-                    ),
+                      const SizedBox(width: 16),
+
+                      // Grid Item 4: Analytics
+                      Expanded(
+                        child: _buildDashboardCard(
+                          icon: Icons.bar_chart_rounded,
+                          title: 'Analytics',
+                          subtitle: 'Listeners & usage',
+                          onTap: () => _showAnalyticsDialog(context, ref, statsAsync),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
 
-                const SizedBox(height: AppDimensions.paddingLarge),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildDashboardCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      height: 140,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: AppColors.primary, size: 32),
+                const SizedBox(height: 12),
                 Text(
-                  'Management Modules',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.bold,
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: AppDimensions.paddingMedium),
-
-                _buildModuleCard(
-                  icon: Icons.cell_tower_rounded,
-                  title: 'Station Management',
-                  description:
-                      'Manage broadcast stations, stream URLs, and metadata',
-                  color: AppColors.accentCyan,
-                  onTap: () => context.push(RouteNames.adminStations),
-                ),
-                const SizedBox(height: AppDimensions.paddingMedium),
-
-                _buildModuleCard(
-                  icon: Icons.library_music_rounded,
-                  title: 'Music Library (Supabase)',
-                  description:
-                      'Private bucket tracks, metadata editing, audio upload & preview',
-                  color: AppColors.accentViolet,
-                  onTap: () => context.push(RouteNames.adminSongs),
-                ),
-                const SizedBox(height: AppDimensions.paddingMedium),
-
-                _buildModuleCard(
-                  icon: Icons.calendar_month_rounded,
-                  title: 'Broadcast Schedules',
-                  description:
-                      'Program grid, playlist sequencing, and conflict detection',
-                  color: AppColors.accentAmber,
-                  onTap: () => context.push(RouteNames.adminSchedules),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -303,65 +186,94 @@ class AdminDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildModuleCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
-        child: Container(
-          padding: const EdgeInsets.all(AppDimensions.paddingMedium),
-          decoration: BoxDecoration(
-            color: AppColors.cardSurface,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
-            border: Border.all(color: AppColors.borderSubtle),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius:
-                      BorderRadius.circular(AppDimensions.radiusSmall),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: AppTypography.titleSmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      description,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
+  void _showAnalyticsDialog(BuildContext context, WidgetRef ref, AsyncValue statsAsync) {
+    statsAsync.when(
+      data: (stats) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: const Text('Listener & Stream Analytics', style: TextStyle(color: Colors.white)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStatRow('Active Stations', '${stats.activeStations}/${stats.totalStations}'),
+                _buildStatRow('Published Schedules', '${stats.publishedSchedules}/${stats.totalSchedules}'),
+                _buildStatRow('Gateway Health', stats.isServerHealthy ? 'ONLINE' : 'CHECKING'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close', style: TextStyle(color: AppColors.primary)),
               ),
             ],
           ),
+        );
+      },
+      loading: () {},
+      error: (_, __) {},
+    );
+  }
+
+  Widget _buildStatRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          Text(value, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+        ],
+      ),
+    );
+  }
+}
+
+class _GreenBottomWave extends StatelessWidget {
+  const _GreenBottomWave();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox(
+        height: 140,
+        width: double.infinity,
+        child: CustomPaint(
+          painter: _BottomWavePainter(),
         ),
       ),
     );
   }
+}
+
+class _BottomWavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final path = Path();
+    path.moveTo(0, h * 0.75);
+    path.cubicTo(w * 0.3, h * 0.45, w * 0.65, h * 0.95, w, h * 0.65);
+    path.lineTo(w, h);
+    path.lineTo(0, h);
+    path.close();
+
+    final paint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          AppColors.primary.withValues(alpha: 0.3),
+          AppColors.primary.withValues(alpha: 0.0),
+        ],
+        begin: Alignment.bottomCenter,
+        end: Alignment.topCenter,
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

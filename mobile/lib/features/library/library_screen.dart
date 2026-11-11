@@ -39,37 +39,37 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(AppStrings.navLibrary),
+        title: const Text('Library', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
         backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppColors.textSecondary),
-            tooltip: 'Settings & Preferences',
-            onPressed: () => context.push(RouteNames.settings),
-          ),
-          if (isAdmin)
-            TextButton.icon(
-              onPressed: () => context.push(RouteNames.admin),
-              icon: const Icon(
-                Icons.admin_panel_settings_rounded,
-                color: AppColors.accentAmber,
-                size: 18,
-              ),
-              label: const Text(
-                'Admin',
-                style: TextStyle(
-                  color: AppColors.accentAmber,
-                  fontWeight: FontWeight.bold,
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: () {
+                if (isAdmin) {
+                  context.push(RouteNames.adminSongUpload);
+                } else {
+                  context.push(RouteNames.settings);
+                }
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary,
                 ),
+                child: const Icon(Icons.add_rounded, color: Colors.black, size: 22),
               ),
             ),
+          ),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Search Input
+            // Search Input matching reference
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppDimensions.paddingLarge,
@@ -80,9 +80,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 onChanged: (val) {
                   ref.read(librarySearchQueryProvider.notifier).setQuery(val);
                 },
-                style: const TextStyle(color: AppColors.textPrimary),
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'Search tracks, artists, stations...',
+                  hintText: 'Search tracks...',
                   hintStyle: const TextStyle(color: AppColors.textMuted),
                   prefixIcon: const Icon(
                     Icons.search_rounded,
@@ -103,25 +103,22 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         )
                       : null,
                   filled: true,
-                  fillColor: AppColors.cardSurface,
+                  fillColor: AppColors.surface,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: AppDimensions.paddingMedium,
                     vertical: AppDimensions.paddingSmall,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.radiusMedium),
-                    borderSide: const BorderSide(color: AppColors.borderSubtle),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.radiusMedium),
-                    borderSide: const BorderSide(color: AppColors.borderSubtle),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.radiusMedium),
-                    borderSide: const BorderSide(color: AppColors.primary),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                   ),
                 ),
               ),

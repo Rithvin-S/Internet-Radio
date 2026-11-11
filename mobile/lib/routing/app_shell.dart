@@ -35,11 +35,13 @@ class AppShell extends ConsumerWidget {
         // Exactly two tabs for unauthenticated guest
         items = const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.radio_rounded),
+            icon: Icon(Icons.cell_tower_rounded),
+            activeIcon: Icon(Icons.cell_tower_rounded),
             label: 'Radio',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.login_rounded),
+            activeIcon: Icon(Icons.login_rounded),
             label: 'Sign In',
           ),
         ];
@@ -48,15 +50,18 @@ class AppShell extends ConsumerWidget {
         // Exactly three tabs for signed-in normal listener
         items = const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.radio_rounded),
+            icon: Icon(Icons.cell_tower_rounded),
+            activeIcon: Icon(Icons.cell_tower_rounded),
             label: 'Radio',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_rounded),
+            icon: Icon(Icons.favorite_outline_rounded),
+            activeIcon: Icon(Icons.favorite_rounded),
             label: AppStrings.navFavourites,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings_rounded),
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings_rounded),
             label: 'Settings',
           ),
         ];
@@ -65,19 +70,23 @@ class AppShell extends ConsumerWidget {
         // Exactly four tabs for authenticated admin
         items = const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.radio_rounded),
+            icon: Icon(Icons.cell_tower_rounded),
+            activeIcon: Icon(Icons.cell_tower_rounded),
             label: 'Radio',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.library_music_rounded),
+            icon: Icon(Icons.layers_outlined),
+            activeIcon: Icon(Icons.layers_rounded),
             label: AppStrings.navLibrary,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.cell_tower_rounded),
+            icon: Icon(Icons.radio_outlined),
+            activeIcon: Icon(Icons.radio_rounded),
             label: AppStrings.navStations,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings_rounded),
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings_rounded),
             label: 'Settings',
           ),
         ];
@@ -87,6 +96,7 @@ class AppShell extends ConsumerWidget {
     final safeIndex = navigationShell.currentIndex.clamp(0, items.length - 1);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           const OfflineBanner(),
@@ -100,13 +110,14 @@ class AppShell extends ConsumerWidget {
           if (navigationShell.currentIndex != 0) const MiniPlayerWidget(),
           Container(
             decoration: const BoxDecoration(
-              color: AppColors.surface,
+              color: AppColors.background,
               border: Border(
                 top: BorderSide(color: AppColors.border, width: 1),
               ),
             ),
             child: BottomNavigationBar(
               type: BottomNavigationBarType.fixed,
+              backgroundColor: AppColors.background,
               currentIndex: safeIndex,
               onTap: _onTap,
               items: items,

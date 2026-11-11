@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulsecast/features/favorites/domain/models/favorite_song.dart';
-import 'package:pulsecast/features/favorites/presentation/providers/favorites_providers.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_dimensions.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../domain/models/listener_track.dart';
 
+/// Exact Reference Track Card matching Screen 8:
+/// 46x46 rounded artwork thumbnail, bold white title, "Artist • Duration" subtitle,
+/// circular play button with green border, and 3-dots menu.
 class ListenerTrackCard extends ConsumerWidget {
   final ListenerTrack track;
   final VoidCallback? onTap;
@@ -22,187 +21,115 @@ class ListenerTrackCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isPlaying = track.isCurrentlyPlaying;
-    final isFavorited = ref.watch(isSongFavoriteProvider('general_${track.id}'));
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
-        child: Container(
-          padding: const EdgeInsets.all(AppDimensions.paddingMedium),
-          decoration: BoxDecoration(
-            color: AppColors.cardSurface,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
-            border: Border.all(
-              color: isPlaying
-                  ? AppColors.primary.withValues(alpha: 0.5)
-                  : AppColors.borderSubtle,
-              width: isPlaying ? 1.5 : 1.0,
-            ),
-          ),
-          child: Row(
-            children: [
-              // Track Icon / Leading
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isPlaying
-                        ? [
-                            AppColors.primary.withValues(alpha: 0.3),
-                            AppColors.accentCyan.withValues(alpha: 0.3),
-                          ]
-                        : [
-                            AppColors.surfaceElevated,
-                            AppColors.cardSurface,
-                          ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusSmall),
-                  border: Border.all(
-                    color: isPlaying
-                        ? AppColors.primary.withValues(alpha: 0.6)
-                        : AppColors.borderSubtle,
-                  ),
-                ),
-                child: Icon(
-                  isPlaying ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
-                  color: isPlaying ? AppColors.primary : AppColors.textSecondary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: AppDimensions.paddingMedium),
-
-              // Title, Artist, Album, Station Tag
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            track.title,
-                            style: AppTypography.titleSmall.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: isPlaying
-                                  ? AppColors.primary
-                                  : AppColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isPlaying) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.6),
-                              ),
-                            ),
-                            child: const Text(
-                              'LIVE',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      track.album != null && track.album!.isNotEmpty
-                          ? '${track.artist} • ${track.album}'
-                          : track.artist,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textSecondary,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isPlaying ? AppColors.primary : AppColors.border,
+          width: isPlaying ? 1.5 : 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                // 1. Artwork Thumbnail (46x46 with 8px radius)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    color: AppColors.surfaceElevated,
+                    child: Center(
+                      child: Icon(
+                        isPlaying ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
+                        color: isPlaying ? AppColors.primary : AppColors.textSecondary,
+                        size: 22,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        // Station Pill
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.borderSubtle),
-                            ),
-                            child: Text(
-                              track.stationName,
-                              style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // 2. Track Title & "Artist • Duration" Subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        track.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14.5,
                         ),
-                        if (track.duration != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            track.duration!,
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        track.duration != null && track.duration!.isNotEmpty
+                            ? '${track.artist} • ${track.duration}'
+                            : track.artist,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // 3. Circular Play Button matching reference
+                GestureDetector(
+                  onTap: onPlayStation ?? onTap,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.transparent,
+                      border: Border.all(
+                        color: AppColors.primary,
+                        width: 1.5,
+                      ),
                     ),
-                  ],
+                    child: Icon(
+                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 6),
 
-              // Favorite Heart Button
-              IconButton(
-                icon: Icon(
-                  isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: isFavorited ? AppColors.accentCoral : AppColors.textMuted,
-                  size: 20,
+                // 4. 3 Vertical Dots Menu Icon matching reference
+                IconButton(
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: AppColors.textSecondary,
+                    size: 20,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: onTap,
                 ),
-                tooltip: isFavorited ? 'Remove Favorite' : 'Save Track to Favorites',
-                onPressed: () {
-                  ref.read(favoritesProvider.notifier).toggleFavoriteSong(
-                        FavoriteSong.fromListenerTrack(track),
-                      );
-                },
-              ),
-
-              // Details indicator
-              IconButton(
-                icon: const Icon(
-                  Icons.info_outline_rounded,
-                  color: AppColors.textMuted,
-                  size: 20,
-                ),
-                onPressed: onTap,
-                tooltip: 'Track Details',
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
