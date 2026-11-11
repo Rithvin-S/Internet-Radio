@@ -46,8 +46,40 @@ class AppConfig {
   /// Channel 6 public HTTPS live radio stream URL (PulseCast Radio 24/7 Automated)
   static const String channel6StreamUrl = String.fromEnvironment(
     'CHANNEL_6_STREAM_URL',
-    defaultValue: 'https://prevent-productions-satisfy-minimal.trycloudflare.com/pulsecast.mp3',
+    defaultValue: 'https://desktop-hl0p01s.tail2c12b2.ts.net/pulsecast.mp3',
   );
+
+  /// Optional compile-time override for Channel 6 metadata endpoint URL
+  static const String _configuredChannel6NowPlayingUrl = String.fromEnvironment(
+    'CHANNEL_6_NOW_PLAYING_URL',
+    defaultValue: '',
+  );
+
+  /// Resolves Channel 6 Node.js `GET /api/now-playing` URL from a Channel 6 stream URL.
+  static String channel6NowPlayingUrlFor(String? streamUrl) {
+    if (_configuredChannel6NowPlayingUrl.isNotEmpty) {
+      return _configuredChannel6NowPlayingUrl;
+    }
+
+    final candidate = (streamUrl != null &&
+            streamUrl.isNotEmpty &&
+            !streamUrl.contains('localhost') &&
+            !streamUrl.contains('127.0.0.1'))
+        ? streamUrl
+        : channel6StreamUrl;
+
+    final uri = Uri.tryParse(candidate);
+    if (uri != null && uri.hasScheme && uri.host.isNotEmpty) {
+      return Uri(
+        scheme: uri.scheme,
+        host: uri.host,
+        port: uri.hasPort ? uri.port : null,
+        path: '/api/now-playing',
+      ).toString();
+    }
+
+    return 'https://prevent-productions-satisfy-minimal.trycloudflare.com/api/now-playing';
+  }
 
   /// Network Timeouts (milliseconds)
   static const int connectTimeout = 15000;

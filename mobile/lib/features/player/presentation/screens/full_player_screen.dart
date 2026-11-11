@@ -158,43 +158,101 @@ class FullPlayerScreen extends ConsumerWidget {
                   children: [
                     const SizedBox(height: 10),
 
-                    // Large Album / Station Artwork with Soft Glow Shadow
+                    // Circular Glowing Vinyl Disc Artwork matching Reference Player
                     Center(
                       child: Container(
-                        width: 250,
-                        height: 250,
+                        width: 224,
+                        height: 224,
                         decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(AppDimensions.radiusXLarge),
-                          gradient: AppColors.auroraGradient,
+                          shape: BoxShape.circle,
+                          gradient: const SweepGradient(
+                            colors: [
+                              Color(0xFF0C100E),
+                              Color(0xFF1F5D2A),
+                              Color(0xFF0C100E),
+                              Color(0xFF2CE045),
+                              Color(0xFF0C100E),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.45),
+                            width: 1.5,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: isPlaying
-                                  ? AppColors.accentCyan.withValues(alpha: 0.35)
-                                  : Colors.black.withValues(alpha: 0.4),
+                                  ? AppColors.primary.withValues(alpha: 0.25)
+                                  : Colors.black.withValues(alpha: 0.5),
                               blurRadius: 28,
-                              offset: const Offset(0, 12),
+                              spreadRadius: 2,
                             ),
                           ],
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(
-                            AppDimensions.radiusXLarge,
+                        padding: const EdgeInsets.all(5),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF0E1013),
                           ),
-                          child: hasArtwork
-                              ? CachedNetworkImage(
-                                  imageUrl: station.artworkUrl!,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, __) => _buildLargeFallbackIcon(),
-                                  errorWidget: (_, __, ___) => _buildLargeFallbackIcon(),
-                                )
-                              : _buildLargeFallbackIcon(),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                width: 170,
+                                height: 170,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.06),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: 128,
+                                height: 128,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.06),
+                                  ),
+                                ),
+                              ),
+                              ClipOval(
+                                child: SizedBox(
+                                  width: 82,
+                                  height: 82,
+                                  child: hasArtwork
+                                      ? CachedNetworkImage(
+                                          imageUrl: station.artworkUrl!,
+                                          fit: BoxFit.cover,
+                                          placeholder: (_, __) =>
+                                              _buildLargeFallbackIcon(),
+                                          errorWidget: (_, __, ___) =>
+                                              _buildLargeFallbackIcon(),
+                                        )
+                                      : _buildLargeFallbackIcon(),
+                                ),
+                              ),
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.background,
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: AppDimensions.paddingLarge),
 
-                    // LIVE Badge & Connection Status
+                    // LIVE Indicator & Connection Status
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -204,10 +262,14 @@ class FullPlayerScreen extends ConsumerWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            gradient: isPlaying
-                                ? AppColors.liveBadgeGradient
-                                : null,
-                            color: isPlaying ? null : AppColors.surfaceElevated,
+                            color: isPlaying
+                                ? AppColors.primary.withValues(alpha: 0.14)
+                                : AppColors.surfaceElevated,
+                            border: Border.all(
+                              color: isPlaying
+                                  ? AppColors.primary.withValues(alpha: 0.4)
+                                  : AppColors.border,
+                            ),
                             borderRadius:
                                 BorderRadius.circular(AppDimensions.radiusFull),
                           ),
@@ -215,29 +277,37 @@ class FullPlayerScreen extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
-                                width: 8,
-                                height: 8,
+                                width: 7,
+                                height: 7,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: isPlaying
-                                      ? Colors.white
+                                      ? AppColors.primary
                                       : AppColors.textMuted,
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 'LIVE',
-                                style: AppTypography.liveBadge,
+                                style: AppTypography.liveBadge.copyWith(
+                                  color: isPlaying
+                                      ? AppColors.primary
+                                      : AppColors.textMuted,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          _getStatusText(status),
-                          style: AppTypography.bodySmall.copyWith(
-                            color: _getStatusColor(status),
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            _getStatusText(status),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: _getStatusColor(status),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -413,7 +483,7 @@ class FullPlayerScreen extends ConsumerWidget {
                           ),
                           const SizedBox(width: AppDimensions.space20),
 
-                          // Large Play / Pause Primary Button
+                          // Large Solid Green Play / Pause Primary Button matching Reference
                           GestureDetector(
                             onTap: (isLoading || isReconnecting)
                                 ? null
@@ -423,24 +493,15 @@ class FullPlayerScreen extends ConsumerWidget {
                                         .togglePlayPause();
                                   },
                             child: Container(
-                              width: 72,
-                              height: 72,
+                              width: 66,
+                              height: 66,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: isPlaying
-                                    ? AppColors.auroraGradient
-                                    : null,
-                                color: isPlaying
-                                    ? null
-                                    : AppColors.surfaceElevated,
-                                border: Border.all(
-                                  color: AppColors.accentCyan,
-                                  width: 2,
-                                ),
+                                color: AppColors.primary,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppColors.accentCyan
-                                        .withValues(alpha: 0.3),
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.35),
                                     blurRadius: 18,
                                     offset: const Offset(0, 4),
                                   ),
@@ -449,8 +510,8 @@ class FullPlayerScreen extends ConsumerWidget {
                               child: (isLoading || isReconnecting)
                                   ? const Center(
                                       child: SizedBox(
-                                        width: 28,
-                                        height: 28,
+                                        width: 26,
+                                        height: 26,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 3,
                                           color: Colors.white,
@@ -461,7 +522,7 @@ class FullPlayerScreen extends ConsumerWidget {
                                       isPlaying
                                           ? Icons.pause_rounded
                                           : Icons.play_arrow_rounded,
-                                      size: 38,
+                                      size: 36,
                                       color: Colors.white,
                                     ),
                             ),
@@ -585,11 +646,14 @@ class FullPlayerScreen extends ConsumerWidget {
   }
 
   Widget _buildLargeFallbackIcon() {
-    return const Center(
-      child: Icon(
-        Icons.radio_rounded,
-        color: Colors.white,
-        size: 96,
+    return Container(
+      color: AppColors.brandGreenDark,
+      child: const Center(
+        child: Icon(
+          Icons.radio_rounded,
+          color: AppColors.primary,
+          size: 38,
+        ),
       ),
     );
   }

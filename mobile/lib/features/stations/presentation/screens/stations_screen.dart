@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/cache/cache_policy.dart';
 import '../../../../core/cache/cache_providers.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../routing/route_names.dart';
 import '../../../player/presentation/providers/player_providers.dart';
 import '../providers/stations_provider.dart';
 import '../widgets/station_card.dart';
@@ -48,6 +50,17 @@ class _StationsScreenState extends ConsumerState<StationsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          tooltip: 'Back',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(RouteNames.home);
+            }
+          },
+        ),
         title: const Text('Stations', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
         backgroundColor: AppColors.background,
         elevation: 0,

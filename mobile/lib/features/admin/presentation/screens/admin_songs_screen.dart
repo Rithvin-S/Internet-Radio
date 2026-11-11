@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/network/api_exception.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../../routing/route_names.dart';
 import 'package:pulsecast/features/admin/domain/models/admin_song.dart';
 import '../providers/admin_providers.dart';
@@ -12,6 +10,7 @@ import '../widgets/admin_song_edit_dialog.dart';
 import '../widgets/admin_song_preview_modal.dart';
 import '../widgets/confirm_dialog.dart';
 
+/// Admin Music Library Screen aligned with the exact reference Library UI.
 class AdminSongsScreen extends ConsumerStatefulWidget {
   const AdminSongsScreen({super.key});
 
@@ -61,8 +60,7 @@ class _AdminSongsScreenState extends ConsumerState<AdminSongsScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.statusCode == 409) {
-        // Backend schedule conflict error
-        showDialog(
+        showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: AppColors.surfaceElevated,
@@ -70,7 +68,7 @@ class _AdminSongsScreenState extends ConsumerState<AdminSongsScreen> {
               children: [
                 Icon(Icons.warning_amber_rounded, color: AppColors.accentAmber),
                 SizedBox(width: 8),
-                Text('Cannot Delete Song'),
+                Expanded(child: Text('Cannot Delete Song')),
               ],
             ),
             content: Text(
@@ -109,188 +107,184 @@ class _AdminSongsScreenState extends ConsumerState<AdminSongsScreen> {
     }
   }
 
+  Future<void> _handleEditSong(AdminSong song) async {
+    final saved = await AdminSongEditDialog.show(
+      context,
+      song: song,
+      onSave: (id, {title, artist, album, isActive}) async {
+        final repo = ref.read(adminSongRepositoryProvider);
+        await repo.updateSong(
+          id,
+          title: title,
+          artist: artist,
+          album: album,
+          isActive: isActive,
+        );
+      },
+    );
+    if (saved) {
+      ref.invalidate(adminSongsListProvider);
+      ref.invalidate(adminSongStatsProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final songsAsync = ref.watch(adminSongsListProvider);
     final statsAsync = ref.watch(adminSongStatsProvider);
     final activeFilter = ref.watch(adminSongActiveFilterProvider);
+    final canPop = context.canPop();
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Music Library'),
         backgroundColor: AppColors.background,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: canPop
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                color: Colors.white,
+                onPressed: () => context.pop(),
+              )
+            : null,
+        title: const Text(
+          'Library',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary, size: 22),
             tooltip: 'Refresh Library',
             onPressed: () {
               ref.invalidate(adminSongsListProvider);
               ref.invalidate(adminSongStatsProvider);
             },
           ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16, left: 4),
+            child: GestureDetector(
+              onTap: () => context.push(RouteNames.adminSongUpload),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary,
+                ),
+                child: const Icon(Icons.add_rounded, color: Colors.black, size: 22),
+              ),
+            ),
+          ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(RouteNames.adminSongUpload),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.black,
-        icon: const Icon(Icons.cloud_upload_rounded),
-        label: const Text(
-          'Upload Song',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Stats summary header
-            statsAsync.when(
-              data: (stats) => Container(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: AppDimensions.paddingLarge,
-                  vertical: 4,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimensions.paddingMedium,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.cardSurface,
-                  borderRadius:
-                      BorderRadius.circular(AppDimensions.radiusMedium),
-                  border: Border.all(color: AppColors.borderSubtle),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildSummaryItem(
-                      'Songs',
-                      '${stats.totalSongs}',
-                      AppColors.primary,
-                    ),
-                    const VerticalDivider(
-                      color: AppColors.borderSubtle,
-                      width: 1,
-                    ),
-                    _buildSummaryItem(
-                      'Active',
-                      '${stats.activeSongs}',
-                      AppColors.accentEmerald,
-                    ),
-                    const VerticalDivider(
-                      color: AppColors.borderSubtle,
-                      width: 1,
-                    ),
-                    _buildSummaryItem(
-                      'Storage',
-                      stats.formattedTotalStorage,
-                      AppColors.accentCyan,
-                    ),
-                    const VerticalDivider(
-                      color: AppColors.borderSubtle,
-                      width: 1,
-                    ),
-                    _buildSummaryItem(
-                      'Duration',
-                      stats.formattedTotalDuration,
-                      AppColors.accentAmber,
-                    ),
-                  ],
-                ),
-              ),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-
-            // Search Bar
+            // Search Bar matching Reference Library
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.paddingLarge,
-                vertical: AppDimensions.paddingSmall,
-              ),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
               child: TextField(
                 controller: _searchController,
                 onChanged: (val) {
+                  setState(() {});
                   ref.read(adminSongSearchProvider.notifier).setQuery(val);
                 },
-                style: const TextStyle(color: AppColors.textPrimary),
+                style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Search songs, artists, albums...',
-                  hintStyle: const TextStyle(color: AppColors.textMuted),
+                  hintText: 'Search tracks...',
+                  hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                   prefixIcon: const Icon(
                     Icons.search_rounded,
                     color: AppColors.textSecondary,
+                    size: 20,
                   ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear_rounded),
+                          icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textSecondary),
                           onPressed: () {
                             _searchController.clear();
-                            ref
-                                .read(adminSongSearchProvider.notifier)
-                                .setQuery('');
+                            setState(() {});
+                            ref.read(adminSongSearchProvider.notifier).setQuery('');
                           },
                         )
                       : null,
                   filled: true,
-                  fillColor: AppColors.cardSurface,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppDimensions.paddingMedium,
-                    vertical: AppDimensions.paddingSmall,
-                  ),
+                  fillColor: AppColors.surfaceElevated,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.radiusMedium),
-                    borderSide: const BorderSide(color: AppColors.borderSubtle),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.radiusMedium),
-                    borderSide: const BorderSide(color: AppColors.borderSubtle),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.primary),
                   ),
                 ),
               ),
             ),
 
-            // Active / Archived Filter Chips
+            // Filter Pills + Compact Stats
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.paddingLarge,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  _buildChip(
-                    label: 'All Songs',
-                    isSelected: activeFilter == null,
-                    onTap: () => ref
-                        .read(adminSongActiveFilterProvider.notifier)
-                        .setFilter(null),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterPill(
+                            label: 'All',
+                            isSelected: activeFilter == null,
+                            onTap: () => ref.read(adminSongActiveFilterProvider.notifier).setFilter(null),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterPill(
+                            label: 'Active',
+                            isSelected: activeFilter == true,
+                            onTap: () => ref.read(adminSongActiveFilterProvider.notifier).setFilter(true),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterPill(
+                            label: 'Archived',
+                            isSelected: activeFilter == false,
+                            onTap: () => ref.read(adminSongActiveFilterProvider.notifier).setFilter(false),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  _buildChip(
-                    label: 'Active Only',
-                    isSelected: activeFilter == true,
-                    onTap: () => ref
-                        .read(adminSongActiveFilterProvider.notifier)
-                        .setFilter(true),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildChip(
-                    label: 'Archived',
-                    isSelected: activeFilter == false,
-                    onTap: () => ref
-                        .read(adminSongActiveFilterProvider.notifier)
-                        .setFilter(false),
+                  statsAsync.when(
+                    data: (stats) => Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        '${stats.totalSongs} tracks • ${stats.formattedTotalStorage}',
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
-            // Songs List
+            // Songs List matching Reference Track Rows
             Expanded(
               child: RefreshIndicator(
                 color: AppColors.primary,
@@ -307,7 +301,7 @@ class _AdminSongsScreenState extends ConsumerState<AdminSongsScreen> {
                         physics: const AlwaysScrollableScrollPhysics(),
                         children: const [
                           Padding(
-                            padding: EdgeInsets.symmetric(vertical: 60),
+                            padding: EdgeInsets.symmetric(vertical: 72),
                             child: Center(
                               child: Column(
                                 children: [
@@ -318,10 +312,8 @@ class _AdminSongsScreenState extends ConsumerState<AdminSongsScreen> {
                                   ),
                                   SizedBox(height: 12),
                                   Text(
-                                    'No songs found in Supabase Storage library.',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                    ),
+                                    'No tracks found in library.',
+                                    style: TextStyle(color: AppColors.textSecondary),
                                   ),
                                 ],
                               ),
@@ -332,18 +324,11 @@ class _AdminSongsScreenState extends ConsumerState<AdminSongsScreen> {
                     }
 
                     return ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppDimensions.paddingLarge,
-                        AppDimensions.paddingSmall,
-                        AppDimensions.paddingLarge,
-                        80, // room for FAB
-                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                       itemCount: songs.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: AppDimensions.paddingSmall),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
-                        final song = songs[index];
-                        return _buildSongCard(context, song);
+                        return _buildTrackRow(context, songs[index]);
                       },
                     );
                   },
@@ -351,26 +336,29 @@ class _AdminSongsScreenState extends ConsumerState<AdminSongsScreen> {
                     child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                   error: (error, _) => Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          color: AppColors.accentCoral,
-                          size: 40,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Failed to load songs: $error',
-                          style: const TextStyle(color: AppColors.accentCoral),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: () =>
-                              ref.invalidate(adminSongsListProvider),
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: AppColors.accentCoral,
+                            size: 40,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Failed to load songs: $error',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.accentCoral),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () => ref.invalidate(adminSongsListProvider),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -382,194 +370,178 @@ class _AdminSongsScreenState extends ConsumerState<AdminSongsScreen> {
     );
   }
 
-  Widget _buildSummaryItem(String label, String value, Color color) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 10,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChip({
+  Widget _buildFilterPill({
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return ActionChip(
-      label: Text(label),
-      onPressed: onTap,
-      backgroundColor: isSelected
-          ? AppColors.primary.withValues(alpha: 0.2)
-          : AppColors.cardSurface,
-      labelStyle: TextStyle(
-        color: isSelected ? AppColors.primary : AppColors.textSecondary,
-        fontSize: 12,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.16)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+            fontSize: 12.5,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
       ),
-      side: BorderSide(
-        color: isSelected ? AppColors.primary : AppColors.borderSubtle,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
     );
   }
 
-  Widget _buildSongCard(BuildContext context, AdminSong song) {
+  Widget _buildTrackRow(BuildContext context, AdminSong song) {
+    final subtitleText = song.isActive
+        ? '${song.artist} • ${song.formattedDuration}'
+        : '${song.artist} • ${song.formattedDuration} • Archived';
+
     return Container(
-      padding: const EdgeInsets.all(AppDimensions.paddingMedium),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
-        border: Border.all(color: AppColors.borderSubtle),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.accentViolet.withValues(alpha: 0.15),
-                  borderRadius:
-                      BorderRadius.circular(AppDimensions.radiusSmall),
-                ),
-                child: const Icon(
-                  Icons.music_note_rounded,
-                  color: AppColors.accentViolet,
-                  size: 22,
-                ),
+          // Artwork / Music Square Thumbnail
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: song.isActive
+                  ? AppColors.brandGreenDark
+                  : AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: song.isActive
+                    ? AppColors.primary.withValues(alpha: 0.25)
+                    : AppColors.border,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            child: Icon(
+              Icons.music_note_rounded,
+              color: song.isActive ? AppColors.primary : AppColors.textMuted,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Title & Artist · Duration
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  song.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitleText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: song.isActive
+                        ? AppColors.textSecondary
+                        : AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // Circular Preview Play Button matching Reference Library row
+          InkWell(
+            onTap: () => AdminSongPreviewModal.show(context, song),
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.surfaceElevated,
+                border: Border.all(color: AppColors.borderLight, width: 1.2),
+              ),
+              child: const Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: 19,
+              ),
+            ),
+          ),
+
+          // 3-dot Menu matching Reference Library row
+          PopupMenuButton<String>(
+            icon: const Icon(
+              Icons.more_vert_rounded,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+            color: AppColors.surfaceElevated,
+            onSelected: (value) {
+              switch (value) {
+                case 'preview':
+                  AdminSongPreviewModal.show(context, song);
+                  break;
+                case 'edit':
+                  _handleEditSong(song);
+                  break;
+                case 'delete':
+                  _handleDeleteSong(song);
+                  break;
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'preview',
+                child: Row(
                   children: [
-                    Text(
-                      song.title,
-                      style: AppTypography.titleSmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      song.album != null && song.album!.isNotEmpty
-                          ? '${song.artist} • ${song.album}'
-                          : song.artist,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Icon(Icons.headphones_rounded, color: AppColors.primary, size: 18),
+                    SizedBox(width: 10),
+                    Text('Preview Track'),
                   ],
                 ),
               ),
-              // Status Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: song.isActive
-                      ? AppColors.accentEmerald.withValues(alpha: 0.2)
-                      : AppColors.surfaceHighlight,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  song.isActive ? 'ACTIVE' : 'ARCHIVED',
-                  style: TextStyle(
-                    color: song.isActive
-                        ? AppColors.accentEmerald
-                        : AppColors.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
+              PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_rounded, color: Colors.white, size: 18),
+                    SizedBox(width: 10),
+                    Text('Edit Metadata'),
+                  ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Divider(color: AppColors.borderSubtle, height: 1),
-          const SizedBox(height: 8),
-
-          // Metadata row & Action buttons
-          Row(
-            children: [
-              Text(
-                '${song.formattedDuration} • ${song.formattedFileSize}',
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline_rounded, color: AppColors.accentCoral, size: 18),
+                    SizedBox(width: 10),
+                    Text('Delete Song', style: TextStyle(color: AppColors.accentCoral)),
+                  ],
                 ),
-              ),
-              const Spacer(),
-              // Preview signed URL button
-              IconButton(
-                icon: const Icon(
-                  Icons.headphones_rounded,
-                  color: AppColors.accentCyan,
-                  size: 20,
-                ),
-                tooltip: 'Preview (Signed URL)',
-                onPressed: () => AdminSongPreviewModal.show(context, song),
-              ),
-              // Edit metadata button
-              IconButton(
-                icon: const Icon(
-                  Icons.edit_rounded,
-                  color: AppColors.textSecondary,
-                  size: 20,
-                ),
-                tooltip: 'Edit Song',
-                onPressed: () async {
-                  final saved = await AdminSongEditDialog.show(
-                    context,
-                    song: song,
-                    onSave: (id, {title, artist, album, isActive}) async {
-                      final repo = ref.read(adminSongRepositoryProvider);
-                      await repo.updateSong(
-                        id,
-                        title: title,
-                        artist: artist,
-                        album: album,
-                        isActive: isActive,
-                      );
-                    },
-                  );
-                  if (saved) {
-                    ref.invalidate(adminSongsListProvider);
-                    ref.invalidate(adminSongStatsProvider);
-                  }
-                },
-              ),
-              // Delete button
-              IconButton(
-                icon: const Icon(
-                  Icons.delete_outline_rounded,
-                  color: AppColors.accentCoral,
-                  size: 20,
-                ),
-                tooltip: 'Delete Song',
-                onPressed: () => _handleDeleteSong(song),
               ),
             ],
           ),

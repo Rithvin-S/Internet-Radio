@@ -301,12 +301,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: RouteNames.library,
           parentNavigatorKey: rootNavigatorKey,
-          builder: (context, state) => const AdminSongsScreen(),
+          builder: (context, state) => const LibraryScreen(),
         ),
         GoRoute(
           path: RouteNames.stations,
           parentNavigatorKey: rootNavigatorKey,
-          builder: (context, state) => const AdminStationsPortalScreen(),
+          builder: (context, state) => const StationsScreen(),
         ),
         GoRoute(
           path: RouteNames.admin,

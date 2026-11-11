@@ -11,6 +11,8 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../favorites/domain/models/favorite_song.dart';
 import '../../../favorites/presentation/providers/favorites_providers.dart';
+import '../../../player/domain/models/channel6_now_playing.dart';
+import '../../../player/presentation/providers/channel6_now_playing_provider.dart';
 import '../../../player/presentation/providers/player_providers.dart';
 import '../../../player/presentation/providers/player_state.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
@@ -25,16 +27,72 @@ class RadioScreen extends ConsumerStatefulWidget {
   ConsumerState<RadioScreen> createState() => _RadioScreenState();
 }
 
-class _RadioScreenState extends ConsumerState<RadioScreen> {
+class _RadioScreenState extends ConsumerState<RadioScreen>
+    with WidgetsBindingObserver {
+  static const Station _defaultChannel6Station = Station(
+    id: 6,
+    name: 'PulseCast Radio',
+    description: 'Automated 24/7 Continuous Radio',
+    genre: 'Mixed / Electronic',
+    streamUrl: AppConfig.channel6StreamUrl,
+    isActive: true,
+  );
+
   bool _hasCheckedAutoplay = false;
-  double _volume = 0.8;
+  double _volume = 1.0;
   bool _isShuffle = false;
   bool _isRepeat = false;
+
+  Station _resolveDefaultChannel6(List<Station>? stations) {
+    if (stations != null) {
+      for (final s in stations) {
+        if (s.isChannel6) return s;
+      }
+    }
+    return _defaultChannel6Station;
+  }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _handleAutoplay());
+    WidgetsBinding.instance.addObserver(this);
+    _volume = ref.read(playerNotifierProvider.notifier).volume;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleAutoplay();
+      _syncChannel6Selection();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState appState) {
+    if (!mounted) return;
+    final notifier = ref.read(channel6NowPlayingProvider.notifier);
+    if (appState == AppLifecycleState.resumed) {
+      notifier.setAppForeground(true);
+    } else if (appState == AppLifecycleState.paused ||
+        appState == AppLifecycleState.detached) {
+      notifier.setAppForeground(false);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  void _syncChannel6Selection() {
+    if (!mounted) return;
+    final stations = ref.read(stationsListProvider).asData?.value;
+    final current = ref.read(playerNotifierProvider).currentStation;
+    final activeStation = current ?? _resolveDefaultChannel6(stations);
+    final notifier = ref.read(channel6NowPlayingProvider.notifier);
+
+    if (activeStation.isChannel6) {
+      notifier.activateForChannel6(streamUrl: activeStation.effectiveStreamUrl);
+    } else {
+      notifier.deactivate();
+    }
   }
 
   void _handleAutoplay() {
@@ -50,15 +108,9 @@ class _RadioScreenState extends ConsumerState<RadioScreen> {
         playerState.status == RadioPlaybackStatus.idle &&
         !playerState.isPlaying &&
         !playerState.isLoading) {
-      final target = playerState.currentStation ??
-          const Station(
-            id: 6,
-            name: 'Chill Vibes',
-            description: '24/7 Lo-Fi & Chill',
-            genre: 'Lo-Fi / Chill',
-            streamUrl: AppConfig.channel6StreamUrl,
-            isActive: true,
-          );
+      final stations = ref.read(stationsListProvider).asData?.value;
+      final target =
+          playerState.currentStation ?? _resolveDefaultChannel6(stations);
       ref.read(playerNotifierProvider.notifier).playStation(target);
     }
   }
@@ -66,21 +118,47 @@ class _RadioScreenState extends ConsumerState<RadioScreen> {
   @override
   Widget build(BuildContext context) {
     final playerState = ref.watch(playerNotifierProvider);
+    final stationsAsync = ref.watch(stationsListProvider);
+    final channel6State = ref.watch(channel6NowPlayingProvider);
+
+    ref.listen<Station?>(
+      playerNotifierProvider.select((s) => s.currentStation),
+      (previous, next) {
+        if (next == null) {
+          Future.microtask(_syncChannel6Selection);
+        }
+      },
+    );
+
+    ref.listen<AsyncValue<List<Station>>>(stationsListProvider, (prev, next) {
+      final current = ref.read(playerNotifierProvider).currentStation;
+      if (current == null) {
+        final resolved = _resolveDefaultChannel6(next.asData?.value);
+        Future.microtask(() {
+          if (!mounted) return;
+          ref
+              .read(channel6NowPlayingProvider.notifier)
+              .activateForChannel6(streamUrl: resolved.effectiveStreamUrl);
+        });
+      }
+    });
+
     final station = playerState.currentStation ??
-        const Station(
-          id: 6,
-          name: 'Chill Vibes',
-          description: '24/7 Lo-Fi & Chill',
-          genre: 'Lo-Fi / Chill',
-          streamUrl: AppConfig.channel6StreamUrl,
-          isActive: true,
-        );
+        _resolveDefaultChannel6(stationsAsync.asData?.value);
+    final isChannel6 = station.isChannel6;
+    final displayStationName = isChannel6 ? 'PulseCast Radio' : station.name;
     final nowPlaying = playerState.nowPlaying;
     final isPlaying = playerState.isPlaying;
     final isLoading = playerState.isLoading;
     final isReconnecting = playerState.isReconnecting;
     final hasError = playerState.hasError;
-    final stationsAsync = ref.watch(stationsListProvider);
+
+    final modalNowPlayingText = isChannel6
+        ? (channel6State.track != null
+            ? '${channel6State.track!.title} — ${channel6State.track!.artist}'
+            : 'PulseCast Radio Live Stream')
+        : (nowPlaying?.displayTitle ??
+            (station.description ?? 'Continuous 24/7 Broadcast'));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -92,8 +170,94 @@ class _RadioScreenState extends ConsumerState<RadioScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 23),
-            tooltip: 'Notifications',
-            onPressed: () {},
+            tooltip: 'Broadcast Info',
+            onPressed: () {
+              final isFav = ref.read(isStationFavoriteProvider(station.id));
+              showModalBottomSheet<void>(
+                context: context,
+                backgroundColor: AppColors.surface,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                builder: (sheetContext) => SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.cell_tower_rounded, color: AppColors.primary, size: 22),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                displayStationName,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                isPlaying ? 'LIVE' : 'STANDBY',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Now Playing: $modalNowPlayingText',
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13.5),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  ref.read(favoritesProvider.notifier).toggleFavoriteStation(station);
+                                  Navigator.pop(sheetContext);
+                                },
+                                icon: Icon(
+                                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
+                                label: Text(isFav ? 'Remove Favourite' : 'Save Station'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(sheetContext);
+                                  context.push(RouteNames.stations);
+                                },
+                                icon: const Icon(Icons.radio_rounded, size: 18),
+                                label: const Text('All Stations'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: AppColors.textSecondary, size: 22),
@@ -110,44 +274,80 @@ class _RadioScreenState extends ConsumerState<RadioScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 12),
+              if (isChannel6) ...[
+                const SizedBox(height: 8),
 
-              // 1. Exact Reference Central Glowing Vinyl Record Disc
-              _VinylRecordDisc(
-                artworkUrl: station.artworkUrl,
-                isPlaying: isPlaying,
-                stationName: station.name,
-              ),
-
-              const SizedBox(height: 28),
-
-              // 2. Station Title & Subtitle
-              Text(
-                station.name,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  letterSpacing: -0.2,
+                // Station name for Channel 6
+                Text(
+                  displayStationName,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.2,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                nowPlaying?.displayTitle ?? (station.genre ?? '24/7 Lo-Fi & Chill'),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+                const SizedBox(height: 12),
 
-              const SizedBox(height: 10),
+                // Song information positioned between station name and vinyl artwork
+                _Channel6NowPlayingBanner(
+                  nowPlayingState: channel6State,
+                  isPlaying: isPlaying,
+                ),
+
+                const SizedBox(height: 20),
+
+                // Central Glowing Vinyl Record Disc
+                _VinylRecordDisc(
+                  artworkUrl: station.artworkUrl,
+                  isPlaying: isPlaying,
+                  stationName: displayStationName,
+                ),
+
+                const SizedBox(height: 20),
+              ] else ...[
+                const SizedBox(height: 12),
+
+                // 1. Exact Reference Central Glowing Vinyl Record Disc
+                _VinylRecordDisc(
+                  artworkUrl: station.artworkUrl,
+                  isPlaying: isPlaying,
+                  stationName: station.name,
+                ),
+
+                const SizedBox(height: 28),
+
+                // 2. Station Title & Subtitle
+                Text(
+                  station.name,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  nowPlaying?.displayTitle ?? (station.genre ?? 'Live Radio'),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+              ],
 
               // 3. Exact Reference LIVE Tag
               Row(
@@ -247,7 +447,12 @@ class _RadioScreenState extends ConsumerState<RadioScreen> {
                     onTap: (isLoading || isReconnecting)
                         ? null
                         : () {
-                            ref.read(playerNotifierProvider.notifier).togglePlayPause();
+                            final notifier = ref.read(playerNotifierProvider.notifier);
+                            if (playerState.currentStation == null || playerState.isIdle) {
+                              notifier.playStation(station);
+                            } else {
+                              notifier.togglePlayPause();
+                            }
                           },
                     child: Container(
                       width: 62,
@@ -322,7 +527,10 @@ class _RadioScreenState extends ConsumerState<RadioScreen> {
                       ),
                       child: Slider(
                         value: _volume,
-                        onChanged: (val) => setState(() => _volume = val),
+                        onChanged: (val) {
+                          setState(() => _volume = val);
+                          ref.read(playerNotifierProvider.notifier).setVolume(val);
+                        },
                       ),
                     ),
                   ),
@@ -363,7 +571,7 @@ class _RadioScreenState extends ConsumerState<RadioScreen> {
               ),
             ),
             TextButton(
-              onPressed: () => context.go(RouteNames.stations),
+              onPressed: () => context.push(RouteNames.stations),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 padding: EdgeInsets.zero,
@@ -827,4 +1035,165 @@ class _VinylGroovesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _VinylGroovesPainter oldDelegate) => false;
+}
+
+/// Displays Channel 6 live track metadata (title + artist) positioned between
+/// the station name and vinyl artwork, with loading and error fallbacks.
+class _Channel6NowPlayingBanner extends StatelessWidget {
+  final Channel6NowPlayingState nowPlayingState;
+  final bool isPlaying;
+
+  const _Channel6NowPlayingBanner({
+    required this.nowPlayingState,
+    required this.isPlaying,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final track = nowPlayingState.track;
+    final isInitialLoading =
+        nowPlayingState.isLoading && !nowPlayingState.hasLoadedOnce;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: track != null && isPlaying
+              ? AppColors.primary.withValues(alpha: 0.4)
+              : AppColors.border,
+          width: 1,
+        ),
+      ),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: _buildBody(isInitialLoading, track),
+      ),
+    );
+  }
+
+  Widget _buildBody(bool isInitialLoading, Channel6NowPlayingTrack? track) {
+    if (isInitialLoading && track == null) {
+      return const Padding(
+        key: ValueKey('ch6-loading'),
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 15,
+              height: 15,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'Loading currently playing song...',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (track != null) {
+      return Column(
+        key: ValueKey('ch6-track-${track.title}-${track.artist}'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.music_note_rounded,
+                size: 14,
+                color: AppColors.primary,
+              ),
+              SizedBox(width: 5),
+              Text(
+                'NOW PLAYING',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            track.title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              height: 1.2,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            track.artist,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      key: ValueKey('ch6-fallback-${nowPlayingState.hasError}'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(
+          '24/7 Automated Stream',
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          nowPlayingState.hasError
+              ? 'Song info temporarily unavailable'
+              : 'Continuous live broadcast',
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
 }

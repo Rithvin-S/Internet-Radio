@@ -32,6 +32,11 @@ class Station {
   /// Identifies whether this is the primary AWS EC2 Icecast Station (Station 7)
   bool get isPrimaryAwsStream => id == 7 || streamUrl.contains('pulsecast.duckdns.org/pulsecast');
 
+  /// Identifies whether this is Channel 6 (PulseCast Radio 24/7 Automated Stream)
+  bool get isChannel6 =>
+      !isPrimaryAwsStream &&
+      (id == 6 || streamUrl == AppConfig.channel6StreamUrl);
+
   /// Effective public stream URL for audio playback.
   /// Replaces the local dev loopback URL for Station #6 with the production public stream URL.
   String get effectiveStreamUrl {

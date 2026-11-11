@@ -21,7 +21,7 @@ class AppTheme {
         onSecondary: Colors.white,
         surface: AppColors.surface,
         onSurface: AppColors.textPrimary,
-        error: AppColors.liveIndicator,
+        error: AppColors.accentCoral,
         onError: Colors.white,
       ),
 
@@ -114,7 +114,7 @@ class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
-          borderSide: const BorderSide(color: AppColors.liveIndicator),
+          borderSide: const BorderSide(color: AppColors.accentCoral),
         ),
       ),
 

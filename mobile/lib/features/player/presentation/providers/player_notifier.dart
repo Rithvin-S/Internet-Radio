@@ -232,22 +232,29 @@ class PlayerNotifier extends Notifier<PlayerState> {
     final audioPlayFuture = _audioHandler.playStation(station);
 
     // 5. Fetch NowPlaying metadata in parallel without delaying audio connection
-    unawaited(
-      _nowPlayingRepository
-          .getNowPlaying(station.id)
-          .then((NowPlayingInfo? metadata) {
-            if (metadata != null && state.currentStation?.id == station.id) {
-              state = state.copyWith(nowPlaying: metadata);
-              _audioHandler.updateMetadata(metadata);
-            }
-          })
-          .catchError((_) => null),
-    );
+    //    (Channel 6 uses direct Node.js `/api/now-playing` polling in channel6NowPlayingProvider)
+    if (!station.isChannel6) {
+      unawaited(
+        _nowPlayingRepository
+            .getNowPlaying(station.id)
+            .then((NowPlayingInfo? metadata) {
+              if (metadata != null && state.currentStation?.id == station.id) {
+                state = state.copyWith(nowPlaying: metadata);
+                _audioHandler.updateMetadata(metadata);
+              }
+            })
+            .catchError((_) => null),
+      );
+    } else {
+      _metadataPollTimer?.cancel();
+    }
 
     await audioPlayFuture;
 
-    // 6. Start periodic metadata refresh while playing
-    _startMetadataPolling(station.id);
+    // 6. Start periodic metadata refresh while playing (non-Channel 6 stations)
+    if (!station.isChannel6) {
+      _startMetadataPolling(station.id);
+    }
   }
 
   void _startMetadataPolling(int stationId) {
@@ -265,7 +272,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
   /// Refreshes current broadcast / song metadata
   Future<void> refreshNowPlaying() async {
     final currentStation = state.currentStation;
-    if (currentStation == null) return;
+    if (currentStation == null || currentStation.isChannel6) return;
 
     try {
       final updated = await _nowPlayingRepository.getNowPlaying(currentStation.id);
@@ -304,6 +311,12 @@ class PlayerNotifier extends Notifier<PlayerState> {
   Future<void> pause() async {
     HapticFeedback.lightImpact();
     await _audioHandler.pause();
+  }
+
+  double get volume => _audioHandler.volume;
+
+  Future<void> setVolume(double value) async {
+    await _audioHandler.setVolume(value);
   }
 
   Future<void> stop() async {

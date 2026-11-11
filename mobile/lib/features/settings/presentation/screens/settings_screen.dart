@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/cache/cache_providers.dart';
+import '../../../../core/connectivity/connectivity_providers.dart';
+import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_dimensions.dart';
+import '../../../../core/sync/sync_providers.dart';
+import '../../../../core/sync/sync_queue.dart';
 import '../../../../routing/route_names.dart';
 import '../../../auth/domain/models/user.dart';
 import '../../../auth/domain/models/user_role.dart';
-import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/widgets/logout_confirmation_dialog.dart';
+import '../../../stations/domain/models/station.dart';
 import '../../../stations/presentation/providers/stations_provider.dart';
+import '../../domain/models/user_settings.dart';
 import '../providers/settings_providers.dart';
 
-/// Exact Reference Settings Screen:
-/// Matches the reference UI specification with profile card, high-fidelity settings rows,
-/// toggle switches, and the dark red Log Out button.
+/// PulseCast Settings Screen aligned with Reference UI specification.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -23,9 +26,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool _lockScreenControls = true;
-  bool _backgroundPlayback = true;
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
@@ -33,6 +33,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final isAuthenticated = authState.isAuthenticated && user != null;
     final isAdmin = isAuthenticated && user.role == UserRole.admin;
     final settings = ref.watch(userSettingsProvider);
+    final connectivity = ref.watch(connectivityStatusProvider);
+    final pendingSync = ref.watch(pendingSyncCountProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -57,7 +59,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Profile Account Card matching reference
-              _buildProfileCard(context, ref, isAuthenticated, user, isAdmin),
+              _buildProfileCard(
+                context,
+                isAuthenticated,
+                user,
+                isAdmin,
+                connectivity,
+                pendingSync,
+              ),
 
               const SizedBox(height: 24),
 
@@ -67,57 +76,81 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: 'Audio Quality',
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text('High', style: TextStyle(color: AppColors.textSecondary, fontSize: 13.5)),
-                    SizedBox(width: 4),
-                    Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textSecondary),
+                  children: [
+                    Text(
+                      settings.dataSaverMode ? 'Data Saver' : 'High',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
                   ],
                 ),
-                onTap: () => _showAudioQualityDialog(context),
+                onTap: () => _showAudioQualityDialog(context, settings),
               ),
 
               _buildSettingsItem(
                 icon: Icons.layers_outlined,
-                title: 'Background Playback',
+                title: 'Autoplay on Launch',
                 trailing: Switch(
-                  value: _backgroundPlayback,
-                  activeColor: AppColors.primary,
+                  value: settings.autoplayOnLaunch,
+                  activeColor: Colors.white,
+                  activeTrackColor: AppColors.primary,
                   onChanged: (val) {
-                    setState(() => _backgroundPlayback = val);
+                    ref.read(userSettingsProvider.notifier).setAutoplay(val);
                   },
                 ),
               ),
 
               _buildSettingsItem(
-                icon: Icons.lock_clock_outlined,
-                title: 'Lock Screen Controls',
+                icon: Icons.data_saver_on_outlined,
+                title: 'Data Saver Mode',
                 trailing: Switch(
-                  value: _lockScreenControls,
-                  activeColor: AppColors.primary,
+                  value: settings.dataSaverMode,
+                  activeColor: Colors.white,
+                  activeTrackColor: AppColors.primary,
                   onChanged: (val) {
-                    setState(() => _lockScreenControls = val);
+                    ref.read(userSettingsProvider.notifier).setDataSaver(val);
                   },
                 ),
               ),
 
               _buildSettingsItem(
                 icon: Icons.notifications_none_rounded,
-                title: 'Notifications',
-                trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textSecondary),
-                onTap: () {},
+                title: 'Playback & Controls',
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+                onTap: () => _showPlaybackControlsSheet(context, settings),
               ),
 
               _buildSettingsItem(
                 icon: Icons.wifi_off_rounded,
-                title: 'Offline Mode',
-                trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textSecondary),
-                onTap: () {},
+                title: 'Offline Mode & Cache',
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+                onTap: () => _showOfflineCacheSheet(context, connectivity),
               ),
 
               _buildSettingsItem(
                 icon: Icons.info_outline_rounded,
                 title: 'About',
-                trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textSecondary),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
                 onTap: () => _showAboutDialog(context),
               ),
 
@@ -127,18 +160,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildSettingsItem(
                   icon: Icons.admin_panel_settings_outlined,
                   title: 'Admin Dashboard',
-                  trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.primary),
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: AppColors.primary,
+                  ),
                   onTap: () => context.push(RouteNames.admin),
                 ),
               ],
 
               const SizedBox(height: 36),
 
-              // 3. Exact Reference Log Out Button (Dark reddish brown with red text)
+              // 3. Exact Reference Log Out / Sign In Button
               if (isAuthenticated)
                 InkWell(
                   onTap: () async {
-                    final shouldLogout = await LogoutConfirmationDialog.show(context);
+                    final shouldLogout =
+                        await LogoutConfirmationDialog.show(context);
                     if (shouldLogout) {
                       await ref.read(authNotifierProvider.notifier).logout();
                       if (context.mounted) {
@@ -198,75 +236,91 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildProfileCard(
     BuildContext context,
-    WidgetRef ref,
     bool isAuthenticated,
     User? user,
     bool isAdmin,
+    ConnectivityStatus connectivity,
+    int pendingSync,
   ) {
-    final name = isAuthenticated ? (user?.name ?? 'Listener') : 'Guest Listener';
-    final email = isAuthenticated ? (user?.email ?? 'signed-in user') : 'Sign in to sync favourites';
+    final name =
+        isAuthenticated ? (user?.name ?? 'Listener') : 'Guest Listener';
+    final email = isAuthenticated
+        ? (user?.email ?? 'signed-in user')
+        : 'Sign in to sync favourites';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 1),
-      ),
-      child: Row(
-        children: [
-          // Green circular avatar matching reference
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primary,
+    return InkWell(
+      onTap: () {
+        if (!isAuthenticated) {
+          context.push(RouteNames.login);
+        } else {
+          _showAccountInfoSheet(
+            context,
+            user!,
+            isAdmin,
+            connectivity,
+            pendingSync,
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border, width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary,
+              ),
+              child: const Icon(
+                Icons.person_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: Colors.white,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: 14),
-
-          // User Name & Email
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  email,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: 3),
+                  Text(
+                    email,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.textSecondary,
-            size: 22,
-          ),
-        ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+              size: 22,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -309,27 +363,128 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  void _showAudioQualityDialog(BuildContext context) {
-    showDialog(
+  void _showAccountInfoSheet(
+    BuildContext context,
+    User user,
+    bool isAdmin,
+    ConnectivityStatus connectivity,
+    int pendingSync,
+  ) {
+    final roleLabel = isAdmin ? 'ADMIN' : 'LISTENER';
+    final statusLabel = connectivity == ConnectivityStatus.online
+        ? 'Connected & Synced'
+        : connectivity == ConnectivityStatus.offline
+            ? 'Offline'
+            : 'Reconnecting';
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Account Details',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _infoRow('Name', user.name),
+              _infoRow('Email', user.email),
+              _infoRow('Role', roleLabel),
+              _infoRow('Cloud Sync', '$statusLabel ($pendingSync pending)'),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Done'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 96,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAudioQualityDialog(BuildContext context, UserSettings settings) {
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Audio Quality', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Audio Quality',
+          style: TextStyle(color: Colors.white),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: const Text('High (192-320 kbps MP3)', style: TextStyle(color: Colors.white)),
-              trailing: const Icon(Icons.check, color: AppColors.primary),
-              onTap: () => Navigator.pop(ctx),
+              title: const Text(
+                'High (192-320 kbps MP3)',
+                style: TextStyle(color: Colors.white),
+              ),
+              trailing: !settings.dataSaverMode
+                  ? const Icon(Icons.check, color: AppColors.primary)
+                  : null,
+              onTap: () {
+                ref.read(userSettingsProvider.notifier).setDataSaver(false);
+                Navigator.pop(ctx);
+              },
             ),
             ListTile(
-              title: const Text('Standard (128 kbps)', style: TextStyle(color: AppColors.textSecondary)),
-              onTap: () => Navigator.pop(ctx),
-            ),
-            ListTile(
-              title: const Text('Low / Data Saver (64 kbps)', style: TextStyle(color: AppColors.textSecondary)),
-              onTap: () => Navigator.pop(ctx),
+              title: const Text(
+                'Low / Data Saver (64 kbps)',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              trailing: settings.dataSaverMode
+                  ? const Icon(Icons.check, color: AppColors.primary)
+                  : null,
+              onTap: () {
+                ref.read(userSettingsProvider.notifier).setDataSaver(true);
+                Navigator.pop(ctx);
+              },
             ),
           ],
         ),
@@ -337,12 +492,189 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  void _showPlaybackControlsSheet(
+    BuildContext context,
+    UserSettings settings,
+  ) {
+    final stationsAsync = ref.read(stationsListProvider);
+    final stations = stationsAsync.value ?? <Station>[];
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Playback & Lock Screen',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Background audio playback and Android lock-screen media controls remain active while streaming.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Default Startup Station',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (stations.isEmpty)
+                const Text(
+                  'Last played station will resume automatically.',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                )
+              else
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      ListTile(
+                        dense: true,
+                        title: const Text(
+                          'Last Selected Station',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        trailing: settings.defaultStationId == null
+                            ? const Icon(Icons.check, color: AppColors.primary)
+                            : null,
+                        onTap: () {
+                          ref
+                              .read(userSettingsProvider.notifier)
+                              .setDefaultStation(null);
+                          Navigator.pop(ctx);
+                        },
+                      ),
+                      ...stations.map(
+                        (s) => ListTile(
+                          dense: true,
+                          title: Text(
+                            s.name,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          trailing: settings.defaultStationId == s.id
+                              ? const Icon(Icons.check,
+                                  color: AppColors.primary)
+                              : null,
+                          onTap: () {
+                            ref
+                                .read(userSettingsProvider.notifier)
+                                .setDefaultStation(s.id);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showOfflineCacheSheet(
+    BuildContext context,
+    ConnectivityStatus connectivity,
+  ) {
+    final cacheStats = ref.read(cacheStatsProvider);
+    final syncStatus = ref.read(syncStatusProvider);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Offline Mode & Cache',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _infoRow('Network', connectivity.name.toUpperCase()),
+              _infoRow('Sync State', syncStatus.name.toUpperCase()),
+              _infoRow('Cached Data', '${cacheStats['kb']} KB'),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        ref.read(connectivityStatusProvider.notifier).checkNow();
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Check Server'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final cleared = await ref
+                            .read(userSettingsProvider.notifier)
+                            .clearNonEssentialCache();
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('Cleared $cleared cached entries.'),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Clear Cache'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showAboutDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('About PulseCast', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'About PulseCast',
+          style: TextStyle(color: Colors.white),
+        ),
         content: const Text(
           'PulseCast Internet Radio Streaming v1.0.0\nHigh-fidelity 24/7 automated music broadcasting.',
           style: TextStyle(color: AppColors.textSecondary),
@@ -350,7 +682,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK', style: TextStyle(color: AppColors.primary)),
+            child:
+                const Text('OK', style: TextStyle(color: AppColors.primary)),
           ),
         ],
       ),

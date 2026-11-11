@@ -32,6 +32,7 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
   // Stream generation token and mutex guard to prevent duplicate / concurrent initializations
   int _streamGeneration = 0;
   bool _isLoadingStream = false;
+  double _volume = 1.0;
 
   final _errorController = StreamController<String?>.broadcast(sync: true);
   Stream<String?> get errorStream => _errorController.stream;
@@ -64,6 +65,12 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
   Station? get currentStation => _currentStation;
   bool get isPlaying => _player.playing;
   bool get isLoadingStream => _isLoadingStream;
+  double get volume => _volume;
+
+  Future<void> setVolume(double value) async {
+    _volume = value.clamp(0.0, 1.0);
+    await _player.setVolume(_volume);
+  }
 
   Future<void> _initAudioSession() async {
     try {
@@ -74,7 +81,7 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
         if (event.begin) {
           switch (event.type) {
             case AudioInterruptionType.duck:
-              _player.setVolume(0.3);
+              _player.setVolume((_volume * 0.3).clamp(0.0, 1.0));
               break;
             case AudioInterruptionType.pause:
             case AudioInterruptionType.unknown:
@@ -84,7 +91,7 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
         } else {
           switch (event.type) {
             case AudioInterruptionType.duck:
-              _player.setVolume(1.0);
+              _player.setVolume(_volume);
               break;
             case AudioInterruptionType.pause:
               play();

@@ -198,7 +198,7 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen>
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () => context.go(RouteNames.stations),
+                onPressed: () => context.push(RouteNames.stations),
                 icon: const Icon(Icons.radio_rounded, size: 18),
                 label: const Text('Explore Stations'),
                 style: ElevatedButton.styleFrom(
@@ -275,7 +275,7 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen>
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () => context.go(RouteNames.library),
+                onPressed: () => context.push(RouteNames.library),
                 icon: const Icon(Icons.library_music_rounded, size: 18),
                 label: const Text('Browse Library'),
                 style: ElevatedButton.styleFrom(

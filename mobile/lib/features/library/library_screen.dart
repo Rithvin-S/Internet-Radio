@@ -39,31 +39,43 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          tooltip: 'Back',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(RouteNames.home);
+            }
+          },
+        ),
         title: const Text('Library', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
         backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
-              onTap: () {
-                if (isAdmin) {
-                  context.push(RouteNames.adminSongUpload);
-                } else {
-                  context.push(RouteNames.settings);
-                }
-              },
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary,
+          if (isAdmin)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: GestureDetector(
+                onTap: () => context.push(RouteNames.adminSongUpload),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary,
+                  ),
+                  child: const Icon(Icons.add_rounded, color: Colors.black, size: 22),
                 ),
-                child: const Icon(Icons.add_rounded, color: Colors.black, size: 22),
               ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+              tooltip: 'Refresh Library',
+              onPressed: () => ref.invalidate(listenerTracksProvider),
             ),
-          ),
         ],
       ),
       body: SafeArea(
