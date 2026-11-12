@@ -278,16 +278,21 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
                 const SizedBox(height: 8),
 
                 // Station name for Channel 6
-                Text(
-                  displayStationName,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.2,
+                SizedBox(
+                  height: 28,
+                  child: Center(
+                    child: Text(
+                      displayStationName,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -321,102 +326,138 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
                 const SizedBox(height: 28),
 
                 // 2. Station Title & Subtitle
-                Text(
-                  station.name,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.2,
+                SizedBox(
+                  height: 30,
+                  child: Center(
+                    child: Text(
+                      station.name,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  nowPlaying?.displayTitle ?? (station.genre ?? 'Live Radio'),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textSecondary,
+                SizedBox(
+                  height: 20,
+                  child: Center(
+                    child: Text(
+                      nowPlaying?.displayTitle ?? (station.genre ?? 'Live Radio'),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ),
                 ),
 
                 const SizedBox(height: 10),
               ],
 
-              // 3. Exact Reference LIVE Tag
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isPlaying ? AppColors.primary : AppColors.textMuted,
-                      boxShadow: isPlaying
-                          ? [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.6),
-                                blurRadius: 6,
-                              )
-                            ]
-                          : null,
+              // 3. Exact Reference LIVE Tag (fixed height slot)
+              SizedBox(
+                height: 20,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isPlaying ? AppColors.primary : AppColors.textMuted,
+                        boxShadow: isPlaying
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.6),
+                                  blurRadius: 6,
+                                )
+                              ]
+                            : null,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'LIVE',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      color: isPlaying ? AppColors.primary : AppColors.textMuted,
+                    const SizedBox(width: 6),
+                    Text(
+                      'LIVE',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: isPlaying ? AppColors.primary : AppColors.textMuted,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
 
               const SizedBox(height: 20),
 
               // 4. Exact Reference Green Audio Waveform Visualizer
-              _WaveformVisualizer(isPlaying: isPlaying),
+              SizedBox(
+                width: double.infinity,
+                height: 28,
+                child: _WaveformVisualizer(isPlaying: isPlaying),
+              ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 6),
 
-              // Error banner if any
-              if (hasError && playerState.errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentCoral.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.accentCoral.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline_rounded, color: AppColors.accentCoral, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          playerState.errorMessage!,
-                          style: const TextStyle(color: AppColors.accentCoral, fontSize: 12),
+              // Reserved fixed-height error banner slot so showing/clearing errors never shifts controls below
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: (hasError && playerState.errorMessage != null)
+                    ? Center(
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentCoral.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.accentCoral.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded, color: AppColors.accentCoral, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  playerState.errorMessage!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.accentCoral,
+                                    fontSize: 11.5,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => ref.read(playerNotifierProvider.notifier).playStation(station),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  minimumSize: const Size(44, 32),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text('Retry', style: TextStyle(color: Colors.white, fontSize: 12)),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () => ref.read(playerNotifierProvider.notifier).playStation(station),
-                        child: const Text('Retry', style: TextStyle(color: Colors.white, fontSize: 12)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
+                      )
+                    : null,
+              ),
+
+              const SizedBox(height: 6),
 
               // 5. Exact Reference Playback Controls Row
               Row(
@@ -582,16 +623,16 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
           ],
         ),
         const SizedBox(height: 8),
-        stationsAsync.when(
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
-          data: (stations) {
-            final activeStations = stations.where((s) => s.isActive).toList();
-            if (activeStations.isEmpty) return const SizedBox.shrink();
+        SizedBox(
+          height: 72,
+          child: stationsAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (stations) {
+              final activeStations = stations.where((s) => s.isActive).toList();
+              if (activeStations.isEmpty) return const SizedBox.shrink();
 
-            return SizedBox(
-              height: 72,
-              child: ListView.separated(
+              return ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 itemCount: activeStations.length,
@@ -673,9 +714,9 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
                     ),
                   );
                 },
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ],
     );
@@ -773,6 +814,10 @@ class _WaveformVisualizer extends StatefulWidget {
 class _WaveformVisualizerState extends State<_WaveformVisualizer> with SingleTickerProviderStateMixin {
   late final AnimationController _animController;
 
+  static const double _waveformHeight = 28.0;
+  static const double _minBarHeight = 4.0;
+  static const double _maxBarHeight = 26.0;
+
   static const List<double> _baseHeights = [
     6, 10, 16, 22, 14, 18, 24, 12, 8, 18, 26, 20, 14, 22, 28, 16, 10, 20, 24, 18, 12, 8, 14, 8, 6
   ];
@@ -807,32 +852,95 @@ class _WaveformVisualizerState extends State<_WaveformVisualizer> with SingleTic
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animController,
-      builder: (context, child) {
-        final animValue = _animController.value;
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: List.generate(_baseHeights.length, (i) {
-            final base = _baseHeights[i];
-            final factor = widget.isPlaying
-                ? (0.4 + 0.6 * ((i % 3 == 0) ? animValue : (1.0 - animValue)))
-                : 0.35;
-            final height = (base * factor).clamp(4.0, 26.0);
-            return Container(
-              width: 3.2,
-              height: height,
-              margin: const EdgeInsets.symmetric(horizontal: 1.6),
-              decoration: BoxDecoration(
-                color: widget.isPlaying ? AppColors.primary : AppColors.textMuted,
-                borderRadius: BorderRadius.circular(2),
+    const double barWidth = 3.2;
+    const double barGap = 3.2;
+    final double totalWidth = _baseHeights.length * (barWidth + barGap);
+
+    return SizedBox(
+      width: double.infinity,
+      height: _waveformHeight,
+      child: ClipRect(
+        child: RepaintBoundary(
+          child: Center(
+            child: CustomPaint(
+              size: Size(totalWidth, _waveformHeight),
+              painter: _LiveWaveformPainter(
+                animation: _animController,
+                isPlaying: widget.isPlaying,
+                baseHeights: _baseHeights,
+                minBarHeight: _minBarHeight,
+                maxBarHeight: _maxBarHeight,
+                barWidth: barWidth,
+                barGap: barGap,
+                activeColor: AppColors.primary,
+                inactiveColor: AppColors.textMuted,
               ),
-            );
-          }),
-        );
-      },
+            ),
+          ),
+        ),
+      ),
     );
+  }
+}
+
+class _LiveWaveformPainter extends CustomPainter {
+  final Animation<double> animation;
+  final bool isPlaying;
+  final List<double> baseHeights;
+  final double minBarHeight;
+  final double maxBarHeight;
+  final double barWidth;
+  final double barGap;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  _LiveWaveformPainter({
+    required this.animation,
+    required this.isPlaying,
+    required this.baseHeights,
+    required this.minBarHeight,
+    required this.maxBarHeight,
+    required this.barWidth,
+    required this.barGap,
+    required this.activeColor,
+    required this.inactiveColor,
+  }) : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = isPlaying ? activeColor : inactiveColor
+      ..style = PaintingStyle.fill;
+
+    final animValue = animation.value;
+    final centerY = size.height / 2;
+    final step = barWidth + barGap;
+    final maxAllowedHeight = maxBarHeight.clamp(minBarHeight, size.height);
+
+    for (int i = 0; i < baseHeights.length; i++) {
+      final base = baseHeights[i];
+      final factor = isPlaying
+          ? (0.4 + 0.6 * ((i % 3 == 0) ? animValue : (1.0 - animValue)))
+          : 0.35;
+      final barHeight = (base * factor).clamp(minBarHeight, maxAllowedHeight);
+      final left = i * step + barGap / 2;
+      final top = centerY - barHeight / 2;
+
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(left, top, barWidth, barHeight),
+          const Radius.circular(2),
+        ),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LiveWaveformPainter oldDelegate) {
+    return oldDelegate.isPlaying != isPlaying ||
+        oldDelegate.activeColor != activeColor ||
+        oldDelegate.inactiveColor != inactiveColor;
   }
 }
 
@@ -891,9 +999,13 @@ class _VinylRecordDiscState extends State<_VinylRecordDisc> with SingleTickerPro
     final boundedSize = size.clamp(210.0, 270.0);
 
     return Center(
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
+      child: SizedBox(
+        width: boundedSize + 20,
+        height: boundedSize + 20,
+        child: RepaintBoundary(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
           // 1. Ambient Green Glow Halo behind the vinyl record
           Container(
             width: boundedSize + 20,
@@ -1002,9 +1114,11 @@ class _VinylRecordDiscState extends State<_VinylRecordDisc> with SingleTickerPro
               ),
             ),
           ),
-        ],
+          ],
+        ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildHubFallback() {
@@ -1056,7 +1170,9 @@ class _Channel6NowPlayingBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      height: 118,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
@@ -1067,9 +1183,20 @@ class _Channel6NowPlayingBanner extends StatelessWidget {
           width: 1,
         ),
       ),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 250),
-        child: _buildBody(isInitialLoading, track),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: constraints.maxWidth,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _buildBody(isInitialLoading, track),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -36,6 +36,7 @@ class Broadcaster extends EventEmitter {
 
     // Pre-allocated silent frame for empty library fallback
     this.silentFrame = this._createSilentFrame();
+    this._consecutiveOpenFailures = 0;
   }
 
   _createSilentFrame() {
@@ -272,6 +273,7 @@ class Broadcaster extends EventEmitter {
     try {
       this.currentFd = fs.openSync(track.filePath, 'r');
       this.currentTrackId = track.id;
+      this._consecutiveOpenFailures = 0;
       // Position at current timeline offset
       const elapsed = this.scheduler.getElapsedSeconds();
       this.currentBytePos = track.audioStart + Math.min(
@@ -282,6 +284,11 @@ class Broadcaster extends EventEmitter {
       console.error(`[Broadcaster] Failed to open track file "${track.filePath}":`, err.message);
       this.currentFd = null;
       this.currentTrackId = null;
+      this._consecutiveOpenFailures++;
+      if (this.isRunning && this._consecutiveOpenFailures <= 10) {
+        console.warn('[Broadcaster] Gracefully advancing past unreadable track...');
+        this._advanceTrack();
+      }
     }
   }
 
